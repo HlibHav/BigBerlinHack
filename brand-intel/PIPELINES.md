@@ -9,7 +9,7 @@
 > **Pipeline-by-pipeline:**
 > - **W9 Competitor Radar:** Peec snapshot file `data/peec-snapshot.json` (refreshed manually via Claude Code MCP session, sentiment+position+citations native у snapshot) + Tavily fresh news (live, supplementary). Manual trigger demo today. ALL severities у `signals` table; auto-draft тільки для `severity='high'`; medium = on-demand button. Reads `competitors` з `relationship='self'|'competitor'`. Stats aggregated у `runs.stats jsonb`.
 > - **W5 Narrative Simulator:** trigger manual через "Simulate alternatives" button on counter-draft або signal. Own LLM panels (gpt-4o + claude-sonnet, 5 prompts × 2 models × 3 variants). Persists у `narrative_variants` з `mention_rate`, `avg_position`, `predicted_sentiment`. Score formula: `mention_rate × (1 / avg_position)`.
-> - **W7 Multi-channel Expand:** auto-trigger на counter-draft approval. Один approved → 4 channel variants (blog ~800w, X thread 5 tweets, LinkedIn ~200w, email subject+body). Persists у `content_variants` table. Spec → `features/content-expansion.md`.
+> - **W7 Multi-channel Expand:** auto-trigger на counter-draft approval. Один approved → 3 channel variants (blog ~800w, X thread 3-7 tweets, LinkedIn ~200w). Persists у `content_variants` table. Spec → `features/content-expansion.md`.
 > - **W6′ Morning Brief:** manual "Send now" button demo today, daily 8am UTC cron post-hackathon. Aggregates yesterday's signals + drafts + Peec brand pulse → ~200w summary → real Slack send via incoming webhook. Persists у `brief_deliveries`. Spec → `features/morning-brief.md`.
 
 ---

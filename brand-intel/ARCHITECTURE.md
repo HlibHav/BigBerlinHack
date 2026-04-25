@@ -15,7 +15,7 @@
 **In scope today (4 pipelines + UX patches):**
 - **W9 `competitor-radar`** — Peec snapshot ingest (з `data/peec-snapshot.json`, refreshed manually via Claude Code session) + Tavily fresh news (supplementary, live). Delta detect → severity+sentiment classify → if `severity='high'` auto-counter-draft. Manual trigger demo today.
 - **W5 `narrative-simulator`** — own LLM panels (gpt-4o + claude-sonnet). Outputs include avg_position, mention_rate, predicted_sentiment. On-demand trigger.
-- **W7 `content-expand`** — один approved counter-draft → 4 channel variants (blog ~800w, X thread 5 tweets, LinkedIn ~200w, email subject+body). Auto-trigger після counter-draft approval.
+- **W7 `content-expand`** — один approved counter-draft → 3 channel variants (blog ~800w, X thread 3-7 tweets, LinkedIn ~200w). Auto-trigger після counter-draft approval.
 - **W6′ `morning-brief`** — daily 8am UTC LLM-synthesized 200w summary → real Slack send via incoming webhook. Cron post-hackathon, manual "Send now" button demo today.
 - `/demo/[brand]` dashboard з 7 sections (audit, competitors, signals, drafts queue, simulator outputs, multi-channel content, morning brief).
 - `competitors` table з `relationship='self'|'competitor'` (self-monitoring через ту саму machinery).
