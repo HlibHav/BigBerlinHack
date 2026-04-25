@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role
+          OPENAI_API_KEY: placeholder
+          ANTHROPIC_API_KEY: placeholder
+          TAVILY_API_KEY: placeholder
+          SLACK_WEBHOOK_URL: https://hooks.slack.com/placeholder
+          PEEC_SNAPSHOT_PATH: ./data/peec-snapshot.json
+          DEMO_BRAND_ID: 00000000-0000-0000-0000-00000000a771
+          DEMO_BRAND_SLUG: attio
+          INNGEST_DEV: "1"
