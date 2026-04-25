@@ -55,13 +55,15 @@ export const MorningBriefDelivered = z.object({
 });
 export type MorningBriefDelivered = z.infer<typeof MorningBriefDelivered>;
 
+// Inngest's EventSchemas.fromZod() expects each event keyed by name with `{ data: ZodObject }`
+// shape (Inngest wraps event payload inside `data`). Per https://www.inngest.com/docs/typescript.
 export const events = {
-  "morning-brief.tick": MorningBriefTick,
-  "morning-brief.delivered": MorningBriefDelivered,
-  "competitor-radar.tick": CompetitorRadarTick,
-  "narrative.simulate-request": NarrativeSimulateRequest,
-  "content.expand-request": ContentExpandRequest,
-  "widget.regenerate": WidgetRegenerate,
+  "morning-brief.tick": { data: MorningBriefTick },
+  "morning-brief.delivered": { data: MorningBriefDelivered },
+  "competitor-radar.tick": { data: CompetitorRadarTick },
+  "narrative.simulate-request": { data: NarrativeSimulateRequest },
+  "content.expand-request": { data: ContentExpandRequest },
+  "widget.regenerate": { data: WidgetRegenerate },
 } as const;
 
 export type EventName = keyof typeof events;
