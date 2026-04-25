@@ -13,6 +13,14 @@ import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
 import { BackToTopFab } from "@/components/dashboard/back-to-top-fab";
 import { V2Footer } from "@/components/dashboard/v2-footer";
 import { PeecDataSourceBadge } from "@/components/dashboard/peec-data-source-badge";
+import { PrelaunchPanel } from "@/components/prelaunch/prelaunch-panel";
+import type { PrelaunchCheckRow } from "@/components/prelaunch/prelaunch-result-card";
+import type {
+  PrelaunchBaseline,
+  PrelaunchPanelResult,
+  PrelaunchPhraseAvailability,
+  PrelaunchVerdict,
+} from "@/lib/schemas/prelaunch-check";
 import { loadPeecSnapshot, getBrandReportHistory } from "@/lib/services/peec-snapshot";
 
 export const runtime = "nodejs";
@@ -51,6 +59,7 @@ export default async function DemoPage({
     { data: contentVariants },
     { data: brief },
     { data: costRows },
+    { data: prelaunchChecks },
   ] = await Promise.all([
     supabase
       .from("runs")
@@ -117,25 +126,69 @@ export default async function DemoPage({
       .select("service, usd_cents")
       .eq("organization_id", org.id)
       .gte("created_at", startOfDayUtc.toISOString()),
+    supabase
+      .from("prelaunch_checks")
+      .select(
+        "id, draft_phrasing, category_hint, verdict, verdict_reasoning, baseline, phrase_availability, llm_panel_results, cost_usd_cents, evidence_refs, created_at"
+      )
+      .eq("organization_id", org.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
 
-  // Brand health: 7-day Peec history для self brand. Snapshot bundled у serverless.
-  let healthHistory: Array<{
+  // Coerce jsonb fields into typed shapes for the PrelaunchPanel — types.ts
+  // exposes them as Json; we trust the writer (Inngest pipeline) to obey schema.
+  const prelaunchRows: PrelaunchCheckRow[] = (prelaunchChecks ?? []).map((r) => ({
+    id: r.id,
+    draft_phrasing: r.draft_phrasing,
+    category_hint: r.category_hint,
+    verdict: r.verdict as PrelaunchVerdict,
+    verdict_reasoning: r.verdict_reasoning,
+    baseline: r.baseline as unknown as PrelaunchBaseline,
+    phrase_availability: r.phrase_availability as unknown as PrelaunchPhraseAvailability,
+    llm_panel_results: r.llm_panel_results as unknown as PrelaunchPanelResult[],
+    cost_usd_cents: r.cost_usd_cents,
+    evidence_refs: r.evidence_refs,
+    created_at: r.created_at,
+  }));
+
+  // Brand health: до 90-day Peec history для self brand + tracked competitors.
+  // Snapshot bundled у serverless. Hero показує 7d sparkline by default;
+  // expanded TrendChart toggleable до 30/90d.
+  type HealthReport = {
     date: string;
     visibility: number;
     share_of_voice: number;
     sentiment: "positive" | "neutral" | "negative";
     position: number | null;
-  }> = [];
+  };
+  let healthHistory: HealthReport[] = [];
+  let competitorHistories: Array<{ brand_name: string; history: HealthReport[] }> = [];
   try {
     const snapshot = await loadPeecSnapshot();
-    healthHistory = getBrandReportHistory(snapshot, org.display_name, 7).map((r) => ({
+    healthHistory = getBrandReportHistory(snapshot, org.display_name, 90).map((r) => ({
       date: r.date,
       visibility: r.visibility,
       share_of_voice: r.share_of_voice,
       sentiment: r.sentiment,
       position: r.position,
     }));
+    // Pull histories для competitors (relationship !== "self") у тому ж organization.
+    const competitorBrands = (competitors ?? []).filter(
+      (c) => c.relationship !== "self" && c.is_active,
+    );
+    competitorHistories = competitorBrands
+      .map((c) => ({
+        brand_name: c.display_name,
+        history: getBrandReportHistory(snapshot, c.display_name, 90).map((r) => ({
+          date: r.date,
+          visibility: r.visibility,
+          share_of_voice: r.share_of_voice,
+          sentiment: r.sentiment,
+          position: r.position,
+        })),
+      }))
+      .filter((c) => c.history.length > 0);
   } catch {
     // peec-snapshot read failure — render empty state у hero
   }
@@ -195,7 +248,11 @@ export default async function DemoPage({
         panels={{
           overview: (
             <>
-              <BrandHealthHero history={healthHistory} brandName={org.display_name} />
+              <BrandHealthHero
+                history={healthHistory}
+                brandName={org.display_name}
+                competitorHistories={competitorHistories}
+              />
               <PipelineStatus runs={pipelineRuns} />
               <AuditPanel
                 organizationId={org.id}
@@ -232,6 +289,14 @@ export default async function DemoPage({
               />
               <CostPanel rows={costRows ?? []} />
             </>
+          ),
+          prelaunch: (
+            <PrelaunchPanel
+              organizationId={org.id}
+              brandSlug={org.slug}
+              brandName={org.display_name}
+              checks={prelaunchRows}
+            />
           ),
         }}
       />
