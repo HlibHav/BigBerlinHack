@@ -23,3 +23,9 @@ __snapshots__
 
 # Note: data/peec-snapshot.json IS committed (per decisions/2026-04-25-mcp-only-peec-attio-demo.md)
 
+
+# Claude working memory — internal only
+.claude/
+CLAUDE.md
+decisions/
+knowledge/
