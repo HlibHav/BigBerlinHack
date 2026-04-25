@@ -47,6 +47,7 @@ type AnthropicModel = "claude-sonnet-4-5" | (string & {});
 
 const ANTHROPIC_PRICING: Record<string, { input_per_1m_usd: number; output_per_1m_usd: number }> = {
   "claude-sonnet-4-5": { input_per_1m_usd: 3, output_per_1m_usd: 15 },
+  "claude-haiku-4-5-20251001": { input_per_1m_usd: 1, output_per_1m_usd: 5 },
 };
 
 export function anthropicCost(

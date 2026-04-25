@@ -5,8 +5,8 @@
 //
 // Step graph:
 //   1. gather-context        — last 7d signals + active counter_drafts + brand voice pillars
-//   2. generate-variants     — generateObjectOpenAI (gpt-4o, SimulatorOutputSchema)
-//   3. score-variants        — 5 hardcoded prompts × 2 models (gpt-4o + claude-sonnet-4-5).
+//   2. generate-variants     — generateObjectOpenAI (gpt-4o-mini, SimulatorOutputSchema)
+//   3. score-variants        — 5 hardcoded prompts × 2 models (gpt-4o-mini + claude-haiku-4-5).
 //                              Compute mention_rate / avg_position / score per variant.
 //   4. persist-variants      — INSERT rows у narrative_variants table.
 //   5. persist-run           — runs row з SimulatorRunStatsSchema.
@@ -220,7 +220,7 @@ export async function __narrativeSimulatorHandler({
       const { object } = await generateObjectOpenAI<SimulatorOutput>({
         schema: SimulatorOutputSchema,
         prompt,
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         organization_id,
         operation: "narrative-simulator:generate",
         schemaName: "SimulatorOutput",
@@ -259,7 +259,7 @@ export async function __narrativeSimulatorHandler({
             generateObjectOpenAI<BrandRanking>({
               schema: BrandRankingSchema,
               prompt: ranking_prompt,
-              model: "gpt-4o",
+              model: "gpt-4o-mini",
               organization_id,
               operation: "narrative-simulator:score-openai",
               schemaName: "BrandRanking",
@@ -268,7 +268,7 @@ export async function __narrativeSimulatorHandler({
             generateObjectAnthropic<BrandRanking>({
               schema: BrandRankingSchema,
               prompt: ranking_prompt,
-              model: "claude-sonnet-4-5",
+              model: "claude-haiku-4-5-20251001",
               organization_id,
               operation: "narrative-simulator:score-anthropic",
               schemaName: "BrandRanking",
@@ -366,7 +366,7 @@ export async function __narrativeSimulatorHandler({
         duration_seconds: Math.round((Date.now() - startMs) / 1000),
         variants_generated: persistedCount,
         prompts_per_variant: SCORING_PROMPTS.length,
-        models_used: ["gpt-4o", "claude-sonnet-4-5"],
+        models_used: ["gpt-4o-mini", "claude-haiku-4-5-20251001"],
         cost_usd_cents,
       });
 

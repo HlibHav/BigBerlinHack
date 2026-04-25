@@ -279,7 +279,7 @@ export const competitorRadar = inngest.createFunction(
         const { object } = await generateObjectAnthropic({
           schema: SignalSchema,
           prompt,
-          model: "claude-sonnet-4-5",
+          model: "claude-haiku-4-5-20251001",
           organization_id,
           operation: "classify-signal",
           schemaName: "Signal",
@@ -366,7 +366,7 @@ export const competitorRadar = inngest.createFunction(
         const { object } = await generateObjectAnthropic({
           schema: CounterDraftSchema,
           prompt,
-          model: "claude-sonnet-4-5",
+          model: "claude-haiku-4-5-20251001",
           organization_id,
           operation: "counter-draft",
           schemaName: "CounterDraft",

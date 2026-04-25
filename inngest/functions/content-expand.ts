@@ -137,7 +137,7 @@ export const contentExpand = inngest.createFunction(
       const { object } = await generateObjectAnthropic({
         schema: BlogLLMSchema,
         prompt,
-        model: "claude-sonnet-4-5",
+        model: "claude-haiku-4-5-20251001",
         organization_id,
         operation: "expand-blog",
         schemaName: "BlogVariant",
