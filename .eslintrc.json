@@ -1,0 +1,13 @@
+{
+  "extends": ["next/core-web-vitals"],
+  "ignorePatterns": [
+    "node_modules/",
+    ".next/",
+    ".vercel/",
+    "coverage/",
+    "dist/",
+    "out/",
+    "supabase/.branches/",
+    "supabase/.temp/"
+  ]
+}

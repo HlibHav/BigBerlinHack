@@ -1,0 +1,102 @@
+# Brand Intelligence Agent — BrandContext template
+# Copy this file to config/{your-brand-slug}.yaml and fill in.
+# Schema definition: ../CONTRACTS.md §1
+# Field semantics described inline as comments.
+
+schema_version: 1
+
+brand:
+  id: my-brand                         # slug, must match filename
+  name: "My Brand Display Name"
+  type: personal                       # personal | startup | product
+  urls:
+    primary: https://example.com
+    aliases: []
+  handles:
+    x: "@handle"
+    linkedin: "linkedin.com/in/..."
+    github: "github.com/..."
+  languages: [en]                      # ISO 639-1 list
+  regions: [US]                        # ISO 3166-1 alpha-2 list
+
+positioning:
+  # Current public positioning — single paragraph.
+  # What we measure against in narrative-simulator.
+  # What counter-drafts stay consistent with.
+  current: |
+    One-paragraph current positioning. Edit this as it evolves;
+    update last_updated below.
+  last_updated: 2026-04-24
+  # 3-5 core messages that support the positioning above.
+  pillars:
+    - "First pillar — what we always emphasize."
+    - "Second pillar."
+    - "Third pillar."
+
+# Prompts we monitor across LLMs. Each represents a "space" we want to be found in.
+# Aim for 5-15 total. Too few = no signal; too many = quota pain.
+tracked_prompts:
+  - id: p001
+    query: "best [category] in [region] 2026"
+    lang: en
+    region: US
+    topic: category-slug
+    priority: high                     # high | med | low — affects radar frequency
+  - id: p002
+    query: "[your differentiator] startups"
+    lang: en
+    region: US
+    topic: category-slug
+    priority: med
+
+# Competitors we track. Start with 3-5. More = more quota.
+tracked_competitors:
+  - id: competitor-slug
+    name: "Competitor Display Name"
+    urls: [https://competitor.com]
+    handles:
+      x: "@competitor"
+      linkedin: "linkedin.com/company/..."
+    watch_sources: [peec, tavily, firecrawl]   # subset of: peec, tavily, firecrawl, x, linkedin
+    severity_threshold: low                    # low = report everything; high = only big moves
+
+# Tone guardrails for auto-generated content (counter-drafts).
+tone:
+  guidelines_path: ./tone.md                   # optional — fuller doc
+  forbidden_phrases:
+    - "revolutionary"
+    - "game-changer"
+    - "best-in-class"
+  forbidden_patterns:
+    - "as an AI"
+    - "I'm just a language model"
+
+sources:
+  peec:
+    project_id: "peec-project-uuid-here"
+    free_tier: true
+    daily_call_budget: 500                     # informational, not enforced
+  tavily:
+    api_key_env: TAVILY_API_KEY                # read from environment
+  firecrawl:
+    api_key_env: FIRECRAWL_API_KEY
+  tts:
+    provider: macos-say                        # macos-say | elevenlabs | gradium
+    # voice_id: "voice-id-for-elevenlabs"     # only if provider = elevenlabs
+
+scheduling:
+  morning_brief:
+    enabled: true
+    local_time: "08:00"
+    tz: "Europe/Kyiv"
+    delivery: [markdown, voice]                # markdown always, voice optional
+  competitor_radar:
+    enabled: true
+    interval_hours: 6
+    offset_minutes: 15                         # run at :15 past the hour
+  quotas:
+    weekly_mcp_budget: 3000                    # soft budget; orchestrator throttles above 80%
+
+notifications:
+  channel: file                                # file | macos-notification | slack
+  # slack_webhook_env: SLACK_WEBHOOK           # only if channel = slack

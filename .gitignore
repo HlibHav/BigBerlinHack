@@ -1,0 +1,25 @@
+node_modules
+.next
+.vercel
+.env
+.env.local
+*.local
+.DS_Store
+coverage
+dist
+out
+next-env.d.ts
+
+# Supabase local
+supabase/.branches
+supabase/.temp
+
+# Vitest
+__snapshots__
+
+# Claude Code project-local backup (not runtime config)
+.claude/CLAUDE.md.backup
+.claude/.DS_Store
+
+# Note: data/peec-snapshot.json IS committed (per decisions/2026-04-25-mcp-only-peec-attio-demo.md)
+
