@@ -1,7 +1,6 @@
 import "server-only";
 
-import { readFile } from "node:fs/promises";
-
+import bundledSnapshot from "@/data/peec-snapshot.json";
 import {
   type PeecAction,
   type PeecBrandReportRow,
@@ -10,34 +9,16 @@ import {
   PeecSnapshotFileSchema,
 } from "@/lib/schemas/peec-snapshot";
 
-const DEFAULT_SNAPSHOT_PATH = "./data/peec-snapshot.json";
-
 /**
  * Read + parse the committed Peec snapshot file. Per
  * `decisions/2026-04-25-mcp-only-peec-attio-demo.md`, Peec data is pulled into
  * `data/peec-snapshot.json` via Claude Code MCP session — there is no live REST
- * call from server runtime. Failure modes (missing file, malformed JSON,
- * schema mismatch) bubble up as Errors so callers can surface them in the
- * Inngest run log instead of crashing silently.
+ * call from server runtime. Static JSON import щоб webpack включив файл у serverless
+ * bundle (Vercel file tracing не статично детектить readFile з dynamic path).
+ * Refresh workflow тойсамий: оновити JSON у репо, commit, redeploy.
  */
 export async function loadPeecSnapshot(): Promise<PeecSnapshotFile> {
-  const path = process.env.PEEC_SNAPSHOT_PATH ?? DEFAULT_SNAPSHOT_PATH;
-  let raw: string;
-  try {
-    raw = await readFile(path, "utf-8");
-  } catch (cause) {
-    throw new Error(
-      `[peec-snapshot] cannot read ${path} — refresh via Claude Code MCP session (see RUNBOOK §1.5)`,
-      { cause },
-    );
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (cause) {
-    throw new Error(`[peec-snapshot] malformed JSON at ${path}`, { cause });
-  }
-  return PeecSnapshotFileSchema.parse(parsed) as PeecSnapshotFile;
+  return PeecSnapshotFileSchema.parse(bundledSnapshot) as PeecSnapshotFile;
 }
 
 /** Latest brand_reports row for a brand by display name. Null if not present. */
