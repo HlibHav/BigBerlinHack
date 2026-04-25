@@ -102,6 +102,54 @@ export const competitorRadar = inngest.createFunction(
     const startedAt = new Date();
     const { organization_id } = event.data;
 
+    // 0. Create run row рано — щоб усі subsequent external API calls
+    //    могли тегувати cost_ledger rows з run_id. Без цього sumRunCost(runId)
+    //    повертає 0 бо recordCost пише з null run_id.
+    //    Initial stats — placeholder; finalize-run UPDATE'ить наприкінці.
+    const runId = (await step.run("create-run", async () => {
+      const supabase = createServiceClient() as unknown as {
+        from: (table: string) => {
+          insert: (row: Record<string, unknown>) => {
+            select: (cols: string) => {
+              single: () => Promise<{
+                data: { id: string } | null;
+                error: { message: string } | null;
+              }>;
+            };
+          };
+        };
+      };
+      const placeholderStats = RadarRunStatsSchema.parse({
+        function_name: "competitor-radar" as const,
+        started_at: startedAt.toISOString(),
+        duration_seconds: 0,
+        sources_scanned: 0,
+        signals_total: 0,
+        signals_by_severity: { high: 0, med: 0, low: 0 },
+        drafts_generated: 0,
+        cost_usd_cents: 0,
+      });
+      // ok=true як placeholder — finalize-run overwrites з real value.
+      // На pipeline crash row stays stale-true (rare; Inngest retries cover).
+      const { data, error } = await supabase
+        .from("runs")
+        .insert({
+          organization_id,
+          function_name: "competitor-radar",
+          event_payload: event.data as unknown as Record<string, unknown>,
+          ok: true,
+          started_at: startedAt.toISOString(),
+          finished_at: null,
+          stats: placeholderStats as unknown as Record<string, unknown>,
+        })
+        .select("id")
+        .single();
+      if (error || !data) {
+        throw new Error(`[create-run] insert failed: ${error?.message ?? "no row"}`);
+      }
+      return data.id;
+    })) as string;
+
     // 1. Load competitors -----------------------------------------------------
     const competitors = (await step.run("load-competitors", async () => {
       const supabase = createServiceClient();
@@ -184,6 +232,7 @@ export const competitorRadar = inngest.createFunction(
               query,
               max_results: TAVILY_RESULTS_PER_QUERY,
               organization_id,
+              run_id: runId,
             });
             for (const r of res.results) {
               collected.push({
@@ -286,6 +335,7 @@ export const competitorRadar = inngest.createFunction(
           schemaDescription: "W9 competitor radar signal classification",
           maxTokens: 600,
           temperature: 0.2,
+          run_id: runId,
         });
 
         out.push({
@@ -372,6 +422,7 @@ export const competitorRadar = inngest.createFunction(
           schemaName: "CounterDraft",
           maxTokens: 800,
           temperature: 0.3,
+          run_id: runId,
         });
 
         // Force evidence_refs to spec'd values (LLM may drift).
@@ -426,22 +477,12 @@ export const competitorRadar = inngest.createFunction(
       };
     })) as ReturnType<typeof RadarRunStatsSchema.parse>;
 
-    // 10. Persist run --------------------------------------------------------
-    // Note: `as any` cast on supabase client mirrors lib/services/cost.ts —
-    // generated Database types treat jsonb columns as `Json` (recursive union)
-    // which TS can't reconcile with stricter Zod-parsed objects. Drop the
-    // cast post `pnpm types:gen` if the types tighten.
-    const runId = (await step.run("persist-run", async () => {
+    // 10. Finalize run --------------------------------------------------------
+    // Run row already exists (created on step 0). Sum cost з cost_ledger
+    // (rows tagged з runId) → UPDATE row з final stats + ok=true + finished_at.
+    await step.run("finalize-run", async () => {
       const supabase = createServiceClient() as unknown as {
         from: (table: string) => {
-          insert: (row: Record<string, unknown>) => {
-            select: (cols: string) => {
-              single: () => Promise<{
-                data: { id: string } | null;
-                error: { message: string } | null;
-              }>;
-            };
-          };
           update: (row: Record<string, unknown>) => {
             eq: (
               col: string,
@@ -450,41 +491,23 @@ export const competitorRadar = inngest.createFunction(
           };
         };
       };
-      const { data: inserted, error: insErr } = await supabase
-        .from("runs")
-        .insert({
-          organization_id,
-          function_name: "competitor-radar",
-          event_payload: event.data as unknown as Record<string, unknown>,
-          ok: true,
-          started_at: startedAt.toISOString(),
-          finished_at: finishedAt.toISOString(),
-          stats: RadarRunStatsSchema.parse(stats) as unknown as Record<
-            string,
-            unknown
-          >,
-        })
-        .select("id")
-        .single();
-      if (insErr || !inserted) {
-        throw new Error(`[persist-run] insert failed: ${insErr?.message ?? "no row"}`);
-      }
-      const id = inserted.id;
-
-      const cost = await sumRunCost(id);
+      const cost = await sumRunCost(runId);
       const finalStats = RadarRunStatsSchema.parse({
         ...stats,
         cost_usd_cents: cost,
       });
       const { error: updErr } = await supabase
         .from("runs")
-        .update({ stats: finalStats as unknown as Record<string, unknown> })
-        .eq("id", id);
+        .update({
+          ok: true,
+          finished_at: finishedAt.toISOString(),
+          stats: finalStats as unknown as Record<string, unknown>,
+        })
+        .eq("id", runId);
       if (updErr) {
-        throw new Error(`[persist-run] cost update failed: ${updErr.message}`);
+        throw new Error(`[finalize-run] update failed: ${updErr.message}`);
       }
-      return id;
-    })) as string;
+    });
 
     return {
       run_id: runId,

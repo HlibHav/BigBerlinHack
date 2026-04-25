@@ -56,6 +56,49 @@ export const contentExpand = inngest.createFunction(
     const startedAt = new Date();
     const { organization_id, parent_counter_draft_id } = event.data;
 
+    // 0. Create run row рано — щоб усі subsequent LLM calls тегували cost_ledger
+    //    rows з run_id. finalize-run наприкінці UPDATE'ить ok/finished/stats.
+    const runId = (await step.run("create-run", async () => {
+      const supabase = createServiceClient() as unknown as {
+        from: (table: string) => {
+          insert: (row: Record<string, unknown>) => {
+            select: (cols: string) => {
+              single: () => Promise<{
+                data: { id: string } | null;
+                error: { message: string } | null;
+              }>;
+            };
+          };
+        };
+      };
+      const placeholderStats = ContentExpandRunStatsSchema.parse({
+        function_name: "content-expand" as const,
+        started_at: startedAt.toISOString(),
+        duration_seconds: 0,
+        parent_counter_draft_id,
+        variants_generated: 0,
+        cost_usd_cents: 0,
+      });
+      // ok=true як placeholder — finalize-run overwrites з real value.
+      const { data, error } = await supabase
+        .from("runs")
+        .insert({
+          organization_id,
+          function_name: "content-expand",
+          event_payload: event.data as unknown as Record<string, unknown>,
+          ok: true,
+          started_at: startedAt.toISOString(),
+          finished_at: null,
+          stats: placeholderStats as unknown as Record<string, unknown>,
+        })
+        .select("id")
+        .single();
+      if (error || !data) {
+        throw new Error(`[create-run] insert failed: ${error?.message ?? "no row"}`);
+      }
+      return data.id;
+    })) as string;
+
     // 1. Load counter-draft + parent brand display name ------------------------
     const counterDraft = (await step.run("load-counter-draft", async () => {
       const supabase = createServiceClient();
@@ -139,6 +182,7 @@ export const contentExpand = inngest.createFunction(
         schemaName: "BlogVariant",
         maxTokens: 2400,
         temperature: 0.5,
+        run_id: runId,
       });
       return ContentVariantSchema.parse({
         channel: "blog",
@@ -170,6 +214,7 @@ export const contentExpand = inngest.createFunction(
         schemaName: "XThreadVariant",
         maxTokens: 1200,
         temperature: 0.6,
+        run_id: runId,
       });
       return ContentVariantSchema.parse({
         channel: "x_thread",
@@ -198,6 +243,7 @@ export const contentExpand = inngest.createFunction(
         schemaName: "LinkedInVariant",
         maxTokens: 900,
         temperature: 0.5,
+        run_id: runId,
       });
       return ContentVariantSchema.parse({
         channel: "linkedin",
@@ -246,11 +292,14 @@ export const contentExpand = inngest.createFunction(
       }
     });
 
-    // 7. Persist run row -----------------------------------------------------
+    // 7. Finalize run row ----------------------------------------------------
+    // Run row already exists (created on step 0). Sum cost з cost_ledger
+    // (rows tagged з runId) → UPDATE row з final stats + ok + finished.
     const finishedAt = new Date();
-    const runId = await step.run("persist-run", async () => {
+    await step.run("finalize-run", async () => {
       const supabase = createServiceClient();
-      const baseStats = {
+      const cost = await sumRunCost(runId);
+      const finalStats = ContentExpandRunStatsSchema.parse({
         function_name: "content-expand" as const,
         started_at: startedAt.toISOString(),
         duration_seconds: Math.max(
@@ -259,42 +308,19 @@ export const contentExpand = inngest.createFunction(
         ),
         parent_counter_draft_id,
         variants_generated: variants.length,
-        cost_usd_cents: 0,
-      };
-
-      const { data: inserted, error: insErr } = await supabase
-        .from("runs")
-        .insert({
-          organization_id,
-          function_name: "content-expand",
-          event_payload: event.data as unknown as Json,
-          ok: true,
-          started_at: startedAt.toISOString(),
-          finished_at: finishedAt.toISOString(),
-          stats: ContentExpandRunStatsSchema.parse(baseStats) as unknown as Json,
-        })
-        .select("id")
-        .single();
-      if (insErr || !inserted) {
-        throw new Error(
-          `[persist-run] insert failed: ${insErr?.message ?? "no row"}`,
-        );
-      }
-      const id = (inserted as { id: string }).id;
-
-      const cost = await sumRunCost(id);
-      const finalStats = ContentExpandRunStatsSchema.parse({
-        ...baseStats,
         cost_usd_cents: cost,
       });
       const { error: updErr } = await supabase
         .from("runs")
-        .update({ stats: finalStats as unknown as Json })
-        .eq("id", id);
+        .update({
+          ok: true,
+          finished_at: finishedAt.toISOString(),
+          stats: finalStats as unknown as Json,
+        })
+        .eq("id", runId);
       if (updErr) {
-        throw new Error(`[persist-run] cost update failed: ${updErr.message}`);
+        throw new Error(`[finalize-run] update failed: ${updErr.message}`);
       }
-      return id;
     });
 
     return {

@@ -147,6 +147,27 @@ export async function __narrativeSimulatorHandler({
     } = event.data;
 
     // -----------------------------------------------------------------------
+    // 0. create-run-row — рано щоб LLM steps могли тегувати cost_ledger з runId
+    // -----------------------------------------------------------------------
+    // ok=true як placeholder — finalize-run overwrites з real value.
+    const runRow = await step.run("create-run-row", async () => {
+      const supabase = createServiceClient();
+      const { data, error } = await supabase
+        .from("runs")
+        .insert({
+          organization_id,
+          function_name: "narrative-simulator",
+          event_payload: event.data as unknown as Json,
+          ok: true,
+          started_at: startedAt,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data;
+    });
+
+    // -----------------------------------------------------------------------
     // 1. gather-context
     // -----------------------------------------------------------------------
     const context = await step.run("gather-context", async () => {
@@ -225,6 +246,7 @@ export async function __narrativeSimulatorHandler({
         operation: "narrative-simulator:generate",
         schemaName: "SimulatorOutput",
         temperature: 0.7,
+        run_id: runRow.id,
       });
 
       return object;
@@ -264,6 +286,7 @@ export async function __narrativeSimulatorHandler({
               operation: "narrative-simulator:score-openai",
               schemaName: "BrandRanking",
               temperature: 0,
+              run_id: runRow.id,
             }),
             generateObjectAnthropic<BrandRanking>({
               schema: BrandRankingSchema,
@@ -273,6 +296,7 @@ export async function __narrativeSimulatorHandler({
               operation: "narrative-simulator:score-anthropic",
               schemaName: "BrandRanking",
               temperature: 0,
+              run_id: runRow.id,
             }),
           ]);
 
@@ -302,27 +326,7 @@ export async function __narrativeSimulatorHandler({
     });
 
     // -----------------------------------------------------------------------
-    // 4. persist-run (placeholder row first so narrative_variants FK satisfied)
-    // -----------------------------------------------------------------------
-    const runRow = await step.run("create-run-row", async () => {
-      const supabase = createServiceClient();
-      const { data, error } = await supabase
-        .from("runs")
-        .insert({
-          organization_id,
-          function_name: "narrative-simulator",
-          event_payload: event.data as unknown as Json,
-          ok: true,
-          started_at: startedAt,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      return data;
-    });
-
-    // -----------------------------------------------------------------------
-    // 5. persist-variants
+    // 4. persist-variants
     // -----------------------------------------------------------------------
     const persistedCount = await step.run("persist-variants", async () => {
       const supabase = createServiceClient();
