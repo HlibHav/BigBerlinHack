@@ -35,13 +35,18 @@ export async function reviewCounterDraft(raw: unknown) {
   }
 
   if (input.status === "approved") {
-    await inngest.send({
-      name: "content.expand-request",
-      data: {
-        organization_id: input.organization_id,
-        parent_counter_draft_id: input.draft_id,
-      },
-    });
+    try {
+      await inngest.send({
+        name: "content.expand-request",
+        data: {
+          organization_id: input.organization_id,
+          parent_counter_draft_id: input.draft_id,
+        },
+      });
+    } catch (err) {
+      console.error("[reviewCounterDraft] inngest.send failed", err);
+      // Status update succeeded; skip event if Inngest unavailable. UI already shows approved.
+    }
   }
 
   revalidatePath(`/demo/${input.brand_slug}`);
@@ -74,13 +79,18 @@ export async function generateOnDemandDraft(raw: unknown) {
   }
 
   // Trigger radar single-signal sweep (hackathon: piggybacks on standard radar tick)
-  await inngest.send({
-    name: "competitor-radar.tick",
-    data: {
-      organization_id: input.organization_id,
-      sweep_window_hours: 1,
-    },
-  });
+  try {
+    await inngest.send({
+      name: "competitor-radar.tick",
+      data: {
+        organization_id: input.organization_id,
+        sweep_window_hours: 1,
+      },
+    });
+  } catch (err) {
+    console.error("[generateOnDemandDraft] inngest.send failed", err);
+    // Signal flagged auto_draft=true; next live radar run will pick up.
+  }
 
   revalidatePath(`/demo/${input.brand_slug}`);
   return { ok: true };

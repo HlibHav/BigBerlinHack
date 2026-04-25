@@ -12,13 +12,19 @@ const TriggerRadarInput = z.object({
 
 export async function triggerRadar(raw: unknown) {
   const input = TriggerRadarInput.parse(raw);
-  const result = await inngest.send({
-    name: "competitor-radar.tick",
-    data: {
-      organization_id: input.organization_id,
-      sweep_window_hours: input.sweep_window_hours,
-    },
-  });
-  revalidatePath(`/demo/${input.brand_slug}`);
-  return { ok: true, event_ids: result.ids };
+  try {
+    const result = await inngest.send({
+      name: "competitor-radar.tick",
+      data: {
+        organization_id: input.organization_id,
+        sweep_window_hours: input.sweep_window_hours,
+      },
+    });
+    revalidatePath(`/demo/${input.brand_slug}`);
+    return { ok: true, event_ids: result.ids };
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : "unknown";
+    console.error("[triggerRadar] inngest.send failed", reason);
+    return { ok: false, reason };
+  }
 }

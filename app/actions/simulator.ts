@@ -15,16 +15,22 @@ const TriggerSimulatorInput = z.object({
 
 export async function triggerSimulator(raw: unknown) {
   const input = TriggerSimulatorInput.parse(raw);
-  const result = await inngest.send({
-    name: "narrative.simulate-request",
-    data: {
-      organization_id: input.organization_id,
-      seed_type: input.seed_type,
-      seed_payload: input.seed_payload,
-      requested_by: input.requested_by,
-      num_variants: input.num_variants,
-    },
-  });
-  revalidatePath(`/demo/${input.brand_slug}`);
-  return { ok: true, event_ids: result.ids };
+  try {
+    const result = await inngest.send({
+      name: "narrative.simulate-request",
+      data: {
+        organization_id: input.organization_id,
+        seed_type: input.seed_type,
+        seed_payload: input.seed_payload,
+        requested_by: input.requested_by,
+        num_variants: input.num_variants,
+      },
+    });
+    revalidatePath(`/demo/${input.brand_slug}`);
+    return { ok: true, event_ids: result.ids };
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : "unknown";
+    console.error("[triggerSimulator] inngest.send failed", reason);
+    return { ok: false, reason };
+  }
 }
