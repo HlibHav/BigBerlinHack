@@ -493,3 +493,20 @@ export const competitorRadar = inngest.createFunction(
     };
   },
 );
+
+export const competitorRadarSchedule = inngest.createFunction(
+  { id: "competitor-radar-schedule", name: "W9 Schedule (every 6h)" },
+  { cron: "TZ=UTC 0 */6 * * *" },
+  async ({ step, logger }) => {
+    const organization_id = process.env.DEMO_BRAND_ID;
+    if (!organization_id) {
+      logger.warn("competitor-radar-schedule skipped: DEMO_BRAND_ID not set");
+      return { skipped: true as const };
+    }
+    await step.sendEvent("emit-radar-tick", {
+      name: "competitor-radar.tick",
+      data: { organization_id, sweep_window_hours: 6 },
+    });
+    return { ok: true as const, organization_id };
+  },
+);

@@ -128,8 +128,8 @@ git push origin main
 ### 2.3 Post-deploy verify
 
 ```bash
-curl https://bbh.vercel.app/api/healthz    # → {ok: true}
-curl https://bbh.vercel.app/api/readyz     # → {supabase: "ok", inngest: "ok"}
+curl https://bbh-brown.vercel.app/api/healthz    # → {ok: true}
+curl https://bbh-brown.vercel.app/api/readyz     # → {supabase: "ok", inngest: "ok"}
 ```
 
 Inngest dashboard (`https://app.inngest.com/env/production/apps`) — has'ло, перевір що app `bbh` показує "in-sync" з deploy commit SHA.
@@ -189,6 +189,23 @@ Supabase CLI не має built-in rollback. Manual approach:
 
 ## 4. Inngest operations
 
+### 4.0 First-time cloud setup
+
+Перший раз треба зв'язати Inngest cloud з Vercel deploy. Один раз — потім auto-sync на кожен push.
+
+1. **Inngest dashboard.** `app.inngest.com` → switch до **Production** environment.
+2. **Get keys.** Manage → Event Keys → "Create Key" (name `bbh-prod-vercel`) → copy. Manage → Signing Keys → "Reveal" → copy.
+3. **Vercel env vars:**
+   ```bash
+   cd /Users/Glebazzz/Claude/PROJECTS/BBH
+   vercel env rm INNGEST_DEV production --yes 2>/dev/null || true
+   vercel env add INNGEST_EVENT_KEY production    # paste event key
+   vercel env add INNGEST_SIGNING_KEY production  # paste signing key
+   ```
+4. **Trigger redeploy** (або push commit, або `vercel --prod`).
+5. **Sync app.** Inngest dashboard → Apps → "Sync new app" → URL `https://bbh-brown.vercel.app/api/inngest` → expect усі функції видимі.
+6. **Verify.** `curl https://bbh-brown.vercel.app/api/readyz` → expect `{"ready":true,"checks":{"supabase":"ok","inngest":"ok"}}`.
+
 ### 4.1 Deploy functions
 
 Auto з Vercel deploy. Endpoint `/api/inngest` синхронізується з Inngest cloud при кожному deploy.
@@ -204,7 +221,7 @@ Auto з Vercel deploy. Endpoint `/api/inngest` синхронізується з
 **Via CLI:**
 
 ```bash
-curl -X POST https://bbh.vercel.app/api/inngest \
+curl -X POST https://bbh-brown.vercel.app/api/inngest \
   -H "Content-Type: application/json" \
   -H "X-Inngest-Signature: ..." \
   -d '{"name":"morning-brief.tick","data":{...}}'
@@ -279,13 +296,13 @@ Dashboard → Functions → click function → "Pause". Useful коли знай
 
 ### 6.2 SEV-1 response playbook
 
-1. **Confirm.** Open `https://bbh.vercel.app/demo/attio` + incognito. If fails → SEV-1 confirmed.
+1. **Confirm.** Open `https://bbh-brown.vercel.app/demo/attio` + incognito. If fails → SEV-1 confirmed.
 2. **Check Vercel deployments.** `vercel ls` — чи recent deploy broken? Якщо так — `vercel rollback <URL>` до попереднього known-good.
 3. **Check Supabase status.** `status.supabase.com` — чи їхній incident? Якщо так — wait, communicate.
 4. **Check Inngest status.** `status.inngest.com` — similar.
 5. **Check logs:**
    ```bash
-   vercel logs https://bbh.vercel.app --follow
+   vercel logs https://bbh-brown.vercel.app --follow
    ```
    Або Vercel dashboard → Deployments → logs.
 6. **Identify root cause.** Most common: env var missing, migration not applied, external API down.
@@ -414,13 +431,13 @@ Dashboard → Functions → click function → "Pause". Useful коли знай
 
 1. Re-create у Vercel dashboard → Import з `git@github.com:HlibHav/BigBerlinHack.git`.
 2. Re-add all env vars (reference `CONTRACTS.md §5`).
-3. Link domain `bbh.vercel.app` (auto-assigned) + custom domain якщо є.
+3. Link domain `bbh-brown.vercel.app` (auto-assigned) + custom domain якщо є.
 4. Redeploy: push tag або empty commit.
 
 ### 9.3 Inngest app desync
 
 1. Inngest dashboard → Apps → `bbh` → check last sync SHA.
-2. Force sync: `curl -X PUT https://bbh.vercel.app/api/inngest`.
+2. Force sync: `curl -X PUT https://bbh-brown.vercel.app/api/inngest`.
 3. Verify functions registered.
 
 ---

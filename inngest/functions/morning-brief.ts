@@ -401,3 +401,24 @@ export const morningBrief = inngest.createFunction(
       logger: ctx.logger,
     }),
 );
+
+export const morningBriefSchedule = inngest.createFunction(
+  { id: "morning-brief-schedule", name: "W6′ Schedule (daily 08:00 UTC)" },
+  { cron: "TZ=UTC 0 8 * * *" },
+  async ({ step, logger }) => {
+    const organization_id = process.env.DEMO_BRAND_ID;
+    if (!organization_id) {
+      logger.warn("morning-brief-schedule skipped: DEMO_BRAND_ID not set");
+      return { skipped: true as const };
+    }
+    await step.sendEvent("emit-brief-tick", {
+      name: "morning-brief.tick",
+      data: {
+        organization_id,
+        run_window_start: new Date().toISOString(),
+        call_preference: "markdown" as const,
+      },
+    });
+    return { ok: true as const, organization_id };
+  },
+);

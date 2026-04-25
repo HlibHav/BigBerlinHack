@@ -42,7 +42,7 @@ Brand Intelligence Agent розгортається як Next.js 14 webapp:
 
 ## Reasoning
 
-- **Public URL** — журі відкриває `https://bbh.vercel.app/demo/vck` з телефону, бачить dashboard за 5 секунд.
+- **Public URL** — журі відкриває `https://bbh-brown.vercel.app/demo/vck` з телефону, бачить dashboard за 5 секунд.
 - **Embeddable widget** — Next.js route `/widget/{id}` повертає standalone HTML, iframe works out of box.
 - **Webhook-ready** — Telli callback приходить на `/api/webhooks/telli`, signature verification на route handler.
 - **Visual impact** — shadcn/ui + Tailwind дають "приємний на око" dashboard за days, а не weeks.

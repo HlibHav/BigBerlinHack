@@ -11,16 +11,25 @@
  * Deferred (post-hackathon): W4 widget-regenerate, W6 morning-brief-voice (Telli/ElevenLabs).
  */
 
-import { competitorRadar } from "./competitor-radar";
+import { competitorRadar, competitorRadarSchedule } from "./competitor-radar";
 import { contentExpand } from "./content-expand";
 import { narrativeSimulator } from "./narrative-simulator";
-import { morningBrief } from "./morning-brief";
+import { morningBrief, morningBriefSchedule } from "./morning-brief";
 
-export { competitorRadar, contentExpand, narrativeSimulator, morningBrief };
-
-export const functions = [
+export {
   competitorRadar,
+  competitorRadarSchedule,
   contentExpand,
   narrativeSimulator,
   morningBrief,
+  morningBriefSchedule,
+};
+
+export const functions = [
+  competitorRadar,
+  competitorRadarSchedule,
+  contentExpand,
+  narrativeSimulator,
+  morningBrief,
+  morningBriefSchedule,
 ] as const;

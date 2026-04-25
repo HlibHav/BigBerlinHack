@@ -102,7 +102,7 @@ Decision rationale → `decisions/2026-04-25-hackathon-scope-cut.md`. Marketer f
 
 ### Public widget (W4) — SSR + periodic refresh `[FULL DESIGN — DEFERRED post-hackathon]`
 
-1. Browser embed: `<iframe src="https://bbh.vercel.app/widget/{brand_id}">`.
+1. Browser embed: `<iframe src="https://bbh-brown.vercel.app/widget/{brand_id}">`.
 2. Vercel edge middleware: дозволяє iframe (Content-Security-Policy relaxed для `/widget/*`).
 3. Server Component `app/widget/[brand]/page.tsx`:
    - `createClient({ cookies })` (anon client).
@@ -529,7 +529,7 @@ UI rendering: кожна counter-draft card має clickable "Джерело:" f
 
 - **Project:** `bbh` (прив'язаний до GitHub repo `git@github.com:glib/bbh.git`).
 - **Region:** `fra1` (Frankfurt) — close to Supabase eu-west-1.
-- **Domains:** `bbh.vercel.app` (default), custom domain post-demo.
+- **Domains:** `bbh-brown.vercel.app` (default), custom domain post-demo.
 - **Env vars (hackathon-active):** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `TAVILY_API_KEY`, `SLACK_WEBHOOK_URL`, `PEEC_SNAPSHOT_PATH=./data/peec-snapshot.json`, `DEMO_BRAND_ID=00000000-0000-0000-0000-00000000a771` (Attio), `DEMO_BRAND_SLUG=attio`. **No `PEEC_API_KEY`** — Peec accessed via committed snapshot file, не live REST (per `decisions/2026-04-25-mcp-only-peec-attio-demo.md`). **Deferred env vars** (post-hackathon): `FIRECRAWL_API_KEY`, `TELLI_API_KEY`, `TELLI_WEBHOOK_SECRET`, `ELEVENLABS_API_KEY`, `RESEND_API_KEY`. Усі secret keys у Vercel dashboard, не у git.
 - **Build:** `pnpm install --frozen-lockfile && pnpm build`.
 - **Preview deploys:** на кожен PR, `*.vercel.app` URL для manual QA.

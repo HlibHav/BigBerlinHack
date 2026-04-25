@@ -270,8 +270,8 @@ vercel inspect <url>                     # detailed deploy info
 ### 4.3 Logs
 
 ```bash
-vercel logs https://bbh.vercel.app --follow    # tail prod logs
-vercel logs https://bbh.vercel.app --since 1h  # last hour
+vercel logs https://bbh-brown.vercel.app --follow    # tail prod logs
+vercel logs https://bbh-brown.vercel.app --since 1h  # last hour
 vercel logs <preview-url>                       # preview deploy logs
 ```
 

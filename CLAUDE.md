@@ -40,7 +40,7 @@ Non-goals v1: paid tiers, multi-tenant admin UI, mobile apps.
 - **External APIs hackathon-active:** **Peec snapshot file** (refresh manual via Claude Code MCP) + Tavily (live search) + OpenAI + Anthropic + Slack incoming webhook. Решта `[DEFERRED]`.
 - **Validation:** Zod schemas for every agent I/O boundary.
 
-**Public demo (hackathon):** `https://bbh.vercel.app/demo/attio` без auth. Private брендів не показуємо до post-demo.
+**Public demo (hackathon):** `https://bbh-brown.vercel.app/demo/attio` без auth. Private брендів не показуємо до post-demo.
 
 ---
 

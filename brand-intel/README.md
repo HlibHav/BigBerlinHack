@@ -12,7 +12,7 @@ Plugin-era docs — у `_archive/` як superseded.
 
 **Deadline:** hackathon demo 2026-04-25.
 
-**Public demo URL:** `https://bbh.vercel.app/demo/attio` (без auth). Slug `attio` resolve'ується до hardcoded UUID у `supabase/seed.sql` (per `decisions/2026-04-25-mcp-only-peec-attio-demo.md`) з окремою `"{t}_public_demo"` RLS policy.
+**Public demo URL:** `https://bbh-brown.vercel.app/demo/attio` (без auth). Slug `attio` resolve'ується до hardcoded UUID у `supabase/seed.sql` (per `decisions/2026-04-25-mcp-only-peec-attio-demo.md`) з окремою `"{t}_public_demo"` RLS policy.
 
 ---
 
@@ -99,7 +99,7 @@ Plugin-era docs — у `_archive/` як superseded.
 
 ## Quick demo flow (hackathon)
 
-1. Відкриваєш `https://bbh.vercel.app/demo/attio` з телефону — dashboard з audit panel (last radar run stats), competitors panel (Attio + Salesforce + HubSpot), active signals (24h), counter-drafts queue, simulator outputs, multi-channel content variants, morning brief preview.
+1. Відкриваєш `https://bbh-brown.vercel.app/demo/attio` з телефону — dashboard з audit panel (last radar run stats), competitors panel (Attio + Salesforce + HubSpot), active signals (24h), counter-drafts queue, simulator outputs, multi-channel content variants, morning brief preview.
 2. Клікаєш counter-draft → бачиш evidence chain (signal UUID + Peec snapshot timestamp + Peec dashboard deep link, або Tavily source URL).
 3. Approve draft → W7 auto-triggers → 4 multi-channel variants (blog/X/LinkedIn/email) з'являються через ~30s.
 4. "Send today's brief now" у Morning brief section → real Slack message posts до demo channel.
