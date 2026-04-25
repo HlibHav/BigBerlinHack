@@ -11,6 +11,7 @@ import { CostPanel } from "@/components/dashboard/cost-panel";
 import { PipelineStatus } from "@/components/dashboard/pipeline-status";
 import { BrandHealthHero } from "@/components/dashboard/brand-health-hero";
 import { RealtimeRefresher } from "@/components/dashboard/realtime-refresher";
+import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
 import { V2Footer } from "@/components/dashboard/v2-footer";
 import { PeecDataSourceBadge } from "@/components/dashboard/peec-data-source-badge";
 import { loadPeecSnapshot, getBrandReportHistory } from "@/lib/services/peec-snapshot";
@@ -84,12 +85,12 @@ export default async function DemoPage({
     supabase
       .from("narrative_variants")
       .select(
-        "id, simulator_run_id, rank, body, score, score_reasoning, predicted_sentiment, avg_position, mention_rate, evidence_refs, created_at"
+        "id, simulator_run_id, seed_signal_id, seed_counter_draft_id, rank, body, score, score_reasoning, predicted_sentiment, avg_position, mention_rate, evidence_refs, created_at"
       )
       .eq("organization_id", org.id)
       .order("created_at", { ascending: false })
       .order("rank", { ascending: true })
-      .limit(15),
+      .limit(30),
     supabase
       .from("content_variants")
       .select("id, parent_counter_draft_id, channel, title, body, metadata, status, created_at")
@@ -140,6 +141,20 @@ export default async function DemoPage({
     // peec-snapshot read failure — render empty state у hero
   }
 
+  // Maps для inline cohesion у DraftCard: signal context + simulator variants per draft
+  const allSignals = signals ?? [];
+  const signalsById = new Map(allSignals.map((s) => [s.id, s]));
+  const allNarrativeVariants = variants ?? [];
+  const narrativeVariantsByDraft = new Map<string, typeof allNarrativeVariants>();
+  for (const v of allNarrativeVariants) {
+    if (!v.seed_counter_draft_id) continue;
+    const arr = narrativeVariantsByDraft.get(v.seed_counter_draft_id) ?? [];
+    arr.push(v);
+    narrativeVariantsByDraft.set(v.seed_counter_draft_id, arr);
+  }
+  // Ad-hoc simulator runs (без draft seed) — для окремої секції SimulatorOutputs.
+  const adHocVariants = allNarrativeVariants.filter((v) => !v.seed_counter_draft_id);
+
   // Latest run per function — для PipelineStatus + AuditPanel
   const allRuns = recentRuns ?? [];
   function latestFor(fn: string): typeof allRuns[number] | null {
@@ -172,43 +187,57 @@ export default async function DemoPage({
         <PeecDataSourceBadge />
       </header>
 
-      <BrandHealthHero history={healthHistory} brandName={org.display_name} />
-
-      <PipelineStatus runs={pipelineRuns} />
-
-      <AuditPanel
-        organizationId={org.id}
-        brandSlug={org.slug}
-        latestRun={latestRun}
+      <DashboardTabs
+        panels={{
+          overview: (
+            <>
+              <BrandHealthHero history={healthHistory} brandName={org.display_name} />
+              <PipelineStatus runs={pipelineRuns} />
+              <AuditPanel
+                organizationId={org.id}
+                brandSlug={org.slug}
+                latestRun={latestRun}
+              />
+              <CompetitorsPanel competitors={competitors ?? []} />
+            </>
+          ),
+          signals: (
+            <SignalsFeed
+              signals={signals ?? []}
+              competitors={competitors ?? []}
+              organizationId={org.id}
+              brandSlug={org.slug}
+            />
+          ),
+          drafts: (
+            <>
+              <DraftsQueue
+                drafts={drafts ?? []}
+                contentVariants={contentVariants ?? []}
+                signalsById={signalsById}
+                narrativeVariantsByDraft={narrativeVariantsByDraft}
+                organizationId={org.id}
+                brandSlug={org.slug}
+              />
+              <MultiChannelPanel
+                contentVariants={contentVariants ?? []}
+                drafts={drafts ?? []}
+              />
+              <SimulatorOutputs variants={adHocVariants} />
+            </>
+          ),
+          operations: (
+            <>
+              <MorningBriefPanel
+                latestBrief={brief}
+                organizationId={org.id}
+                brandSlug={org.slug}
+              />
+              <CostPanel rows={costRows ?? []} />
+            </>
+          ),
+        }}
       />
-
-      <CompetitorsPanel competitors={competitors ?? []} />
-
-      <SignalsFeed
-        signals={signals ?? []}
-        competitors={competitors ?? []}
-        organizationId={org.id}
-        brandSlug={org.slug}
-      />
-
-      <DraftsQueue
-        drafts={drafts ?? []}
-        contentVariants={contentVariants ?? []}
-        organizationId={org.id}
-        brandSlug={org.slug}
-      />
-
-      <SimulatorOutputs variants={variants ?? []} />
-
-      <MultiChannelPanel contentVariants={contentVariants ?? []} drafts={drafts ?? []} />
-
-      <MorningBriefPanel
-        latestBrief={brief}
-        organizationId={org.id}
-        brandSlug={org.slug}
-      />
-
-      <CostPanel rows={costRows ?? []} />
 
       <V2Footer />
     </main>

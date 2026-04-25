@@ -26,6 +26,36 @@ type ContentVariant = {
   body: string;
 };
 
+type Signal = {
+  id: string;
+  severity: "low" | "med" | "high";
+  sentiment: "positive" | "neutral" | "negative";
+  summary: string;
+  source_type: "competitor" | "internal" | "external" | "peec_delta";
+};
+
+type NarrativeVariant = {
+  id: string;
+  rank: number;
+  body: string;
+  score: number;
+  predicted_sentiment: "positive" | "neutral" | "negative";
+  avg_position: number | null;
+  mention_rate: number;
+};
+
+const severityChip: Record<Signal["severity"], string> = {
+  high: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+  med: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+  low: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+};
+
+const sentimentEmoji: Record<NarrativeVariant["predicted_sentiment"], string> = {
+  positive: "🙂",
+  neutral: "😐",
+  negative: "🙁",
+};
+
 const statusColor: Record<string, string> = {
   draft: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
   approved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
@@ -87,12 +117,16 @@ function DraftStepper({
 export function DraftCard({
   draft,
   variants,
+  signal,
+  narrativeVariants,
   organizationId,
   brandSlug,
   decided,
 }: {
   draft: Draft;
   variants: ContentVariant[];
+  signal: Signal | null;
+  narrativeVariants: NarrativeVariant[];
   organizationId: string;
   brandSlug: string;
   decided?: boolean;
@@ -192,6 +226,32 @@ export function DraftCard({
         <span className="shrink-0 text-xs text-muted-foreground">{formatRelative(draft.created_at)}</span>
       </div>
 
+      {signal ? (
+        <a
+          href={`?tab=signals#signal-${signal.id}`}
+          className="mt-2 block rounded-md border border-border bg-muted/30 p-2 text-xs hover:bg-muted/50 transition-colors"
+          title="View signal у Signals tab"
+        >
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              triggered by
+            </span>
+            <span
+              className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${severityChip[signal.severity]}`}
+            >
+              {signal.severity}
+            </span>
+            <span className="rounded bg-secondary px-1.5 py-0.5 text-[9px] uppercase text-secondary-foreground">
+              {signal.source_type === "peec_delta" ? "Peec" : signal.source_type}
+            </span>
+            <span className="ml-auto text-[10px] text-muted-foreground hover:underline">
+              view in feed ↗
+            </span>
+          </div>
+          <p className="mt-1 line-clamp-2">{signal.summary}</p>
+        </a>
+      ) : null}
+
       <DraftStepper status={optimisticStatus} variantsCount={variants.length} />
 
       <p className="mt-2 whitespace-pre-wrap text-sm">{draft.body}</p>
@@ -232,6 +292,39 @@ export function DraftCard({
             ↻ Simulate alternatives
           </Button>
         </div>
+      ) : null}
+
+      {narrativeVariants.length > 0 ? (
+        <details className="mt-3 rounded-md border border-border bg-muted/30 p-2 text-xs" open>
+          <summary className="cursor-pointer font-semibold text-muted-foreground hover:text-foreground">
+            ↻ {narrativeVariants.length} simulator variants for this draft
+          </summary>
+          <ol className="mt-2 space-y-2">
+            {narrativeVariants
+              .slice()
+              .sort((a, b) => a.rank - b.rank)
+              .map((v) => (
+                <li key={v.id} className="rounded bg-background p-2">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                        #{v.rank}
+                      </span>
+                      <span className="font-medium">score {v.score.toFixed(2)}</span>
+                      <span title={`predicted sentiment: ${v.predicted_sentiment}`}>
+                        {sentimentEmoji[v.predicted_sentiment]}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">
+                      mention {(v.mention_rate * 100).toFixed(0)}% · pos{" "}
+                      {v.avg_position !== null ? v.avg_position.toFixed(1) : "—"}
+                    </span>
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap text-xs">{v.body}</p>
+                </li>
+              ))}
+          </ol>
+        </details>
       ) : null}
 
       {variants.length > 0 ? (

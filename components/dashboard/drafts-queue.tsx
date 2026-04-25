@@ -22,14 +22,49 @@ type ContentVariant = {
   status: string;
 };
 
+type Signal = {
+  id: string;
+  severity: "low" | "med" | "high";
+  sentiment: "positive" | "neutral" | "negative";
+  position: number | null;
+  summary: string;
+  reasoning: string;
+  source_type: "competitor" | "internal" | "external" | "peec_delta";
+  source_url: string;
+  evidence_refs: string[];
+  auto_draft: boolean;
+  competitor_id: string | null;
+  created_at: string;
+};
+
+type NarrativeVariant = {
+  id: string;
+  simulator_run_id: string;
+  seed_signal_id: string | null;
+  seed_counter_draft_id: string | null;
+  rank: number;
+  body: string;
+  score: number;
+  score_reasoning: string;
+  predicted_sentiment: "positive" | "neutral" | "negative";
+  avg_position: number | null;
+  mention_rate: number;
+  evidence_refs: string[];
+  created_at: string;
+};
+
 export function DraftsQueue({
   drafts,
   contentVariants,
+  signalsById,
+  narrativeVariantsByDraft,
   organizationId,
   brandSlug,
 }: {
   drafts: Draft[];
   contentVariants: ContentVariant[];
+  signalsById: Map<string, Signal>;
+  narrativeVariantsByDraft: Map<string, NarrativeVariant[]>;
   organizationId: string;
   brandSlug: string;
 }) {
@@ -61,6 +96,8 @@ export function DraftsQueue({
               key={d.id}
               draft={d}
               variants={variantsByDraft.get(d.id) ?? []}
+              signal={d.signal_id ? signalsById.get(d.signal_id) ?? null : null}
+              narrativeVariants={narrativeVariantsByDraft.get(d.id) ?? []}
               organizationId={organizationId}
               brandSlug={brandSlug}
             />
@@ -70,6 +107,8 @@ export function DraftsQueue({
               key={d.id}
               draft={d}
               variants={variantsByDraft.get(d.id) ?? []}
+              signal={d.signal_id ? signalsById.get(d.signal_id) ?? null : null}
+              narrativeVariants={narrativeVariantsByDraft.get(d.id) ?? []}
               organizationId={organizationId}
               brandSlug={brandSlug}
               decided

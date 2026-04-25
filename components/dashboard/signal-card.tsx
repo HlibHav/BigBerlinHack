@@ -62,7 +62,7 @@ export function SignalCard({
   }
 
   return (
-    <li className="rounded-md border border-border bg-background p-3">
+    <li id={`signal-${signal.id}`} className="scroll-mt-24 rounded-md border border-border bg-background p-3">
       <div className="flex items-baseline justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${severityColor[signal.severity]}`}>

@@ -22,11 +22,11 @@ export function SimulatorOutputs({ variants }: { variants: Variant[] }) {
     return (
       <section className="rounded-lg border border-dashed border-border bg-card/50 p-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Simulator outputs — ranked variants
+          Ad-hoc simulator runs
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Жодного simulator run. Натисни <span className="font-mono text-xs">↻ Simulate alternatives</span>{" "}
-          на counter-draft нижче — W5 згенерує 3 ranked variants за ~60s.
+          Симуляції прив&apos;язані до draft видно inline на цій же сторінці.
+          Тут будуть тільки ad-hoc прогони (без draft seed).
         </p>
       </section>
     );
