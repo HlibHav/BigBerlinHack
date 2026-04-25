@@ -1,5 +1,13 @@
 # BBH — Brand Intelligence Agent
 
+[![Vercel](https://img.shields.io/badge/Vercel-deployed-success?logo=vercel&logoColor=white)](https://bbh-brown.vercel.app/demo/attio)
+[![CI](https://github.com/HlibHav/BigBerlinHack/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/HlibHav/BigBerlinHack/actions/workflows/ci.yml)
+[![Next.js 14](https://img.shields.io/badge/Next.js-14-black?logo=nextdotjs)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20RLS-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com)
+[![Inngest](https://img.shields.io/badge/Inngest-cloud-blueviolet?logo=inngest&logoColor=white)](https://inngest.com)
+[![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-D97757?logo=anthropic&logoColor=white)](https://claude.com/claude-code)
+
 > **Your brand is being shaped by AI models right now.** BBH monitors how LLMs describe you vs competitors, classifies the gaps, writes counter-narratives, and ships them across channels — while you sleep.
 
 **Live demo:** [bbh-brown.vercel.app/demo/attio](https://bbh-brown.vercel.app/demo/attio) — Attio vs Salesforce & HubSpot, no login required.
@@ -18,7 +26,7 @@ Most brands have no idea how ChatGPT, Claude, or Gemini describes them when a bu
 
 **Narrative Simulator (W5)** takes a competitor move or any seed prompt and generates 3–5 ranked counter-narratives. Each variant is scored by simulating how it performs across LLM panels. Not "here's the best answer" — here's why each one ranks differently.
 
-**Multi-Channel Expand (W7)** takes one approved counter-draft and expands it into four ready-to-publish formats: long-form blog post, X thread, LinkedIn update, and email. Triggered automatically on approval.
+**Multi-Channel Expand (W7)** takes one approved counter-draft and expands it into three ready-to-publish formats: long-form blog post, X thread, and LinkedIn update. Triggered automatically on approval.
 
 **Morning Brief (W6′)** sends a 200-word Slack summary every morning at 8am UTC — yesterday's signal delta, top counter-draft performance, what moved overnight.
 
