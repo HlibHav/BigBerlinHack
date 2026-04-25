@@ -53,6 +53,66 @@ export async function reviewCounterDraft(raw: unknown) {
   return { ok: true };
 }
 
+const ApproveWithVariantInput = z.object({
+  draft_id: z.string().uuid(),
+  variant_id: z.string().uuid(),
+  organization_id: z.string().uuid(),
+  brand_slug: z.string().min(1),
+});
+
+/**
+ * Approve a counter-draft using one of the simulator variants як новий body.
+ * Replaces draft.body з variant.body, marks status=approved, тригерить W7
+ * expand. Дозволяє user'у вибрати ranked variant для multi-channel розширення
+ * замість оригінального draft body.
+ */
+export async function approveWithVariant(raw: unknown) {
+  const input = ApproveWithVariantInput.parse(raw);
+  const supabase = createServiceClient();
+
+  // Fetch обраний variant body, перевіряємо org isolation.
+  const { data: variant, error: vErr } = await supabase
+    .from("narrative_variants")
+    .select("body")
+    .eq("id", input.variant_id)
+    .eq("organization_id", input.organization_id)
+    .maybeSingle();
+
+  if (vErr || !variant) {
+    return { ok: false, reason: vErr?.message ?? "variant not found" };
+  }
+
+  const { error: updErr } = await supabase
+    .from("counter_drafts")
+    .update({
+      body: variant.body,
+      status: "approved",
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", input.draft_id)
+    .eq("organization_id", input.organization_id);
+
+  if (updErr) {
+    return { ok: false, reason: updErr.message };
+  }
+
+  try {
+    await inngest.send({
+      name: "content.expand-request",
+      data: {
+        organization_id: input.organization_id,
+        parent_counter_draft_id: input.draft_id,
+      },
+    });
+  } catch (err) {
+    console.error("[approveWithVariant] inngest.send failed", err);
+    // Status update succeeded; skip event if Inngest unavailable.
+  }
+
+  revalidatePath(`/demo/${input.brand_slug}`);
+  return { ok: true };
+}
+
 const GenerateOnDemandInput = z.object({
   signal_id: z.string().uuid(),
   organization_id: z.string().uuid(),

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { formatRelative } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { reviewCounterDraft } from "@/app/actions/counter-draft";
+import { reviewCounterDraft, approveWithVariant } from "@/app/actions/counter-draft";
 import { triggerSimulator } from "@/app/actions/simulator";
 
 type Draft = {
@@ -194,6 +194,38 @@ export function DraftCard({
       .catch((err) => toast.error("Не вдалося скопіювати", { description: String(err) }));
   }
 
+  function onUseVariant(variantId: string, rank: number) {
+    setOptimisticStatus("approved");
+    const t = toast.loading(`Using variant #${rank} → expanding`, {
+      description: "Draft body заміняється на variant, W7 будує 4 channel versions",
+    });
+    startTransition(async () => {
+      try {
+        const result = await approveWithVariant({
+          draft_id: draft.id,
+          variant_id: variantId,
+          organization_id: organizationId,
+          brand_slug: brandSlug,
+        });
+        if (result.ok) {
+          toast.success(`Variant #${rank} approved → expansion triggered`, {
+            id: t,
+            description: "Channel variants з'являться у ~90s",
+          });
+        } else {
+          toast.error("Approve fail", { id: t, description: result.reason ?? "DB update failed" });
+          setOptimisticStatus(draft.status);
+        }
+      } catch (err) {
+        toast.error("Approve fail", {
+          id: t,
+          description: err instanceof Error ? err.message : "unknown",
+        });
+        setOptimisticStatus(draft.status);
+      }
+    });
+  }
+
   function onSimulate() {
     const t = toast.loading("Simulating alternatives", {
       description: "W5 ranking 3 variants по mention rate × position × sentiment",
@@ -344,7 +376,7 @@ export function DraftCard({
       {narrativeVariants.length > 0 ? (
         <details className="mt-3 rounded-md border border-border bg-muted/30 p-2 text-xs" open>
           <summary className="cursor-pointer font-semibold text-muted-foreground hover:text-foreground">
-            ↻ {narrativeVariants.length} simulator variants for this draft
+            ↻ {narrativeVariants.length} simulator variants — обери, щоб запустити expansion
           </summary>
           <ol className="mt-2 space-y-2">
             {narrativeVariants
@@ -368,6 +400,17 @@ export function DraftCard({
                     </span>
                   </div>
                   <p className="mt-1 whitespace-pre-wrap text-xs">{v.body}</p>
+                  {!decided && optimisticStatus === "draft" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2"
+                      onClick={() => onUseVariant(v.id, v.rank)}
+                      disabled={isPending}
+                    >
+                      ✓ Use #{v.rank} & expand into 4 channels
+                    </Button>
+                  ) : null}
                 </li>
               ))}
           </ol>
@@ -375,26 +418,50 @@ export function DraftCard({
       ) : null}
 
       {variants.length > 0 ? (
-        <details
-          className="mt-3 rounded-md border border-border bg-muted/30 p-2 text-xs"
-          open
-        >
-          <summary className="cursor-pointer font-semibold text-muted-foreground hover:text-foreground">
-            📤 {variants.length} channel variants (W7 expand) — blog · X · LinkedIn · email
-          </summary>
-          <ul className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {variants.map((v) => (
-              <li key={v.id} className="rounded bg-background p-2">
-                <p className="font-semibold uppercase">{channelLabel(v.channel)}</p>
-                {v.title ? <p className="mt-0.5 font-medium">{v.title}</p> : null}
-                <p className="mt-0.5 whitespace-pre-wrap">
-                  {v.body.slice(0, 280)}
-                  {v.body.length > 280 ? "…" : ""}
-                </p>
-              </li>
-            ))}
+        <div className="mt-3 rounded-md border border-border bg-muted/30 p-2 text-xs">
+          <p className="mb-2 font-semibold text-muted-foreground">
+            📤 {variants.length} channel variants — клікни, щоб розгорнути
+          </p>
+          <ul className="space-y-1.5">
+            {variants
+              .slice()
+              .sort((a, b) => a.channel.localeCompare(b.channel))
+              .map((v) => (
+                <li key={v.id}>
+                  <details className="rounded bg-background">
+                    <summary className="flex cursor-pointer flex-wrap items-baseline gap-2 p-2 hover:bg-muted/40 list-none">
+                      <span className="font-semibold">{channelLabel(v.channel)}</span>
+                      {v.title ? (
+                        <span className="font-medium">{v.title}</span>
+                      ) : null}
+                      <span className="line-clamp-1 min-w-0 flex-1 text-muted-foreground">
+                        {v.body.replace(/\s+/g, " ").slice(0, 80)}…
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {v.body.length} chars
+                      </span>
+                    </summary>
+                    <div className="border-t border-border p-2">
+                      {v.title ? (
+                        <p className="mb-1 font-medium">{v.title}</p>
+                      ) : null}
+                      <p className="whitespace-pre-wrap text-xs leading-relaxed">{v.body}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(v.body).catch(() => {});
+                          toast.success(`${channelLabel(v.channel)} скопійовано`);
+                        }}
+                        className="mt-2 text-[11px] text-muted-foreground hover:underline"
+                      >
+                        ⧉ Copy {channelLabel(v.channel)} body
+                      </button>
+                    </div>
+                  </details>
+                </li>
+              ))}
           </ul>
-        </details>
+        </div>
       ) : null}
         </div>
       )}
