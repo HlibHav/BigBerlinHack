@@ -100,6 +100,29 @@ export async function __morningBriefHandler({
     const { organization_id, run_window_start, call_preference } = event.data;
 
     // -----------------------------------------------------------------------
+    // 0a. create-run-row — рано щоб LLM/external calls могли тегувати cost_ledger.
+    // -----------------------------------------------------------------------
+    // ok=true як placeholder — finalize-run overwrites з real value.
+    const runId = (await step.run("create-run-row", async () => {
+      const supabase = createServiceClient();
+      const { data, error } = await supabase
+        .from("runs")
+        .insert({
+          organization_id,
+          function_name: "morning-brief",
+          event_payload: event.data as unknown as Json,
+          ok: true,
+          started_at: startedAt,
+        })
+        .select("id")
+        .single();
+      if (error || !data) {
+        throw new Error(`[create-run-row] insert failed: ${error?.message ?? "no row"}`);
+      }
+      return (data as { id: string }).id;
+    })) as string;
+
+    // -----------------------------------------------------------------------
     // 0. warn-voice-deferred — voice paths are deferred; fall through до markdown.
     // -----------------------------------------------------------------------
     if (call_preference !== "markdown") {
@@ -238,6 +261,7 @@ export async function __morningBriefHandler({
         operation: "morning-brief:synthesize",
         schemaName: "MorningBrief",
         temperature: 0.4,
+        run_id: runId,
       });
 
       // Defensive: ensure evidence_refs not empty (LLM might drop them) and
@@ -331,29 +355,11 @@ export async function __morningBriefHandler({
     });
 
     // -----------------------------------------------------------------------
-    // 6. persist-run — create runs row with finished stats in one shot.
+    // 6. finalize-run — UPDATE existing row з final stats + ok + finished_at.
     // -----------------------------------------------------------------------
-    const runId = await step.run("persist-run", async () => {
+    await step.run("finalize-run", async () => {
       const supabase = createServiceClient();
-      // Insert preliminary row to obtain run_id, then sum its cost.
-      const { data: created, error: createErr } = await supabase
-        .from("runs")
-        .insert({
-          organization_id,
-          function_name: "morning-brief",
-          event_payload: event.data as unknown as Json,
-          ok: sendResult.ok,
-          reason: sendResult.ok
-            ? `slack delivered ${brief.signal_count} signal${brief.signal_count === 1 ? "" : "s"}`
-            : `slack send failed: ${sendResult.error_reason}`,
-          started_at: startedAt,
-          finished_at: new Date().toISOString(),
-        })
-        .select("id")
-        .single();
-      if (createErr) throw createErr;
-
-      const cost_usd_cents = await sumRunCost(created.id);
+      const cost_usd_cents = await sumRunCost(runId);
       const stats = MorningBriefRunStatsSchema.parse({
         function_name: "morning-brief",
         started_at: startedAt,
@@ -366,11 +372,16 @@ export async function __morningBriefHandler({
 
       const { error: updErr } = await supabase
         .from("runs")
-        .update({ stats: stats as unknown as Json })
-        .eq("id", created.id);
+        .update({
+          ok: sendResult.ok,
+          reason: sendResult.ok
+            ? `slack delivered ${brief.signal_count} signal${brief.signal_count === 1 ? "" : "s"}`
+            : `slack send failed: ${sendResult.error_reason}`,
+          finished_at: new Date().toISOString(),
+          stats: stats as unknown as Json,
+        })
+        .eq("id", runId);
       if (updErr) throw updErr;
-
-      return created.id;
     });
 
     // run_window_start is part of contract; surface it in the structured log
