@@ -9,9 +9,10 @@ import { MultiChannelPanel } from "@/components/dashboard/multi-channel-panel";
 import { MorningBriefPanel } from "@/components/dashboard/morning-brief-panel";
 import { CostPanel } from "@/components/dashboard/cost-panel";
 import { PipelineStatus } from "@/components/dashboard/pipeline-status";
-import { BrandHealthHero } from "@/components/dashboard/brand-health-hero";
+import { BrandHealthHero, BrandHealthMini } from "@/components/dashboard/brand-health-hero";
 import { RealtimeRefresher } from "@/components/dashboard/realtime-refresher";
 import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
+import { BackToTopFab } from "@/components/dashboard/back-to-top-fab";
 import { V2Footer } from "@/components/dashboard/v2-footer";
 import { PeecDataSourceBadge } from "@/components/dashboard/peec-data-source-badge";
 import { loadPeecSnapshot, getBrandReportHistory } from "@/lib/services/peec-snapshot";
@@ -188,6 +189,7 @@ export default async function DemoPage({
       </header>
 
       <DashboardTabs
+        rightSlot={<BrandHealthMini history={healthHistory} />}
         panels={{
           overview: (
             <>
@@ -240,6 +242,7 @@ export default async function DemoPage({
       />
 
       <V2Footer />
+      <BackToTopFab />
     </main>
   );
 }

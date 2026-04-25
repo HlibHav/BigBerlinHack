@@ -134,6 +134,8 @@ export function DraftCard({
   const [isPending, startTransition] = useTransition();
   const [optimisticStatus, setOptimisticStatus] = useState(draft.status);
   const [showVariants, setShowVariants] = useState(false);
+  // Compact mode default: collapsed everything except meta + CTA. Click chevron — full layout.
+  const [expanded, setExpanded] = useState(false);
 
   function onReview(status: "approved" | "rejected") {
     setOptimisticStatus(status);
@@ -213,48 +215,81 @@ export function DraftCard({
 
   return (
     <li className={`rounded-md border border-border bg-background p-3 ${decided ? "opacity-70" : ""}`}>
-      <div className="flex items-baseline justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${statusColor[optimisticStatus]}`}>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        aria-controls={`draft-body-${draft.id}`}
+        className="-m-1 flex w-full items-baseline justify-between gap-3 rounded p-1 text-left hover:bg-muted/30"
+      >
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span aria-hidden className="text-xs text-muted-foreground">
+            {expanded ? "▾" : "▸"}
+          </span>
+          {signal ? (
+            <span
+              title={`signal severity: ${signal.severity}`}
+              className={`inline-block h-2 w-2 shrink-0 rounded-full ${
+                signal.severity === "high"
+                  ? "bg-red-500"
+                  : signal.severity === "med"
+                  ? "bg-amber-500"
+                  : "bg-zinc-400"
+              }`}
+            />
+          ) : null}
+          <span
+            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${statusColor[optimisticStatus]}`}
+          >
             {optimisticStatus}
           </span>
           <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">
             {draft.channel_hint}
           </span>
-          <span className="text-xs text-muted-foreground">tone: {draft.tone_pillar}</span>
+          {!expanded ? (
+            <span className="line-clamp-1 min-w-0 text-xs text-muted-foreground">
+              {draft.body.slice(0, 120)}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">tone: {draft.tone_pillar}</span>
+          )}
         </div>
-        <span className="shrink-0 text-xs text-muted-foreground">{formatRelative(draft.created_at)}</span>
-      </div>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {formatRelative(draft.created_at)}
+        </span>
+      </button>
 
-      {signal ? (
-        <a
-          href={`?tab=signals#signal-${signal.id}`}
-          className="mt-2 block rounded-md border border-border bg-muted/30 p-2 text-xs hover:bg-muted/50 transition-colors"
-          title="View signal у Signals tab"
-        >
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              triggered by
-            </span>
-            <span
-              className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${severityChip[signal.severity]}`}
+      {!expanded ? null : (
+        <div id={`draft-body-${draft.id}`}>
+          {signal ? (
+            <a
+              href={`?tab=signals#signal-${signal.id}`}
+              className="mt-2 block rounded-md border border-border bg-muted/30 p-2 text-xs hover:bg-muted/50 transition-colors"
+              title="View signal у Signals tab"
             >
-              {signal.severity}
-            </span>
-            <span className="rounded bg-secondary px-1.5 py-0.5 text-[9px] uppercase text-secondary-foreground">
-              {signal.source_type === "peec_delta" ? "Peec" : signal.source_type}
-            </span>
-            <span className="ml-auto text-[10px] text-muted-foreground hover:underline">
-              view in feed ↗
-            </span>
-          </div>
-          <p className="mt-1 line-clamp-2">{signal.summary}</p>
-        </a>
-      ) : null}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  triggered by
+                </span>
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${severityChip[signal.severity]}`}
+                >
+                  {signal.severity}
+                </span>
+                <span className="rounded bg-secondary px-1.5 py-0.5 text-[9px] uppercase text-secondary-foreground">
+                  {signal.source_type === "peec_delta" ? "Peec" : signal.source_type}
+                </span>
+                <span className="ml-auto text-[10px] text-muted-foreground hover:underline">
+                  view in feed ↗
+                </span>
+              </div>
+              <p className="mt-1 line-clamp-2">{signal.summary}</p>
+            </a>
+          ) : null}
 
-      <DraftStepper status={optimisticStatus} variantsCount={variants.length} />
+          <DraftStepper status={optimisticStatus} variantsCount={variants.length} />
 
-      <p className="mt-2 whitespace-pre-wrap text-sm">{draft.body}</p>
+          <p className="mt-2 whitespace-pre-wrap text-sm">{draft.body}</p>
 
       {draft.evidence_refs.length > 0 ? (
         <details className="mt-2 text-xs">
@@ -348,6 +383,8 @@ export function DraftCard({
           ) : null}
         </div>
       ) : null}
+        </div>
+      )}
     </li>
   );
 }

@@ -24,6 +24,7 @@ type Filter = "all" | "high" | "med" | "low";
 
 const severityRank: Record<string, number> = { high: 0, med: 1, low: 2 };
 const LOW_MED_VISIBLE_DEFAULT = 3;
+const PAGE_SIZE = 8;
 
 export function SignalsFeed({
   signals,
@@ -38,6 +39,7 @@ export function SignalsFeed({
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [showAllLow, setShowAllLow] = useState(false);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const competitorMap = new Map(competitors.map((c) => [c.id, c.display_name]));
 
   const sorted = [...signals].sort((a, b) => {
@@ -49,7 +51,7 @@ export function SignalsFeed({
   const filtered = filter === "all" ? sorted : sorted.filter((s) => s.severity === filter);
 
   // У режимі "all" приховуємо med/low після 3 кожного — high завжди видні.
-  const visible =
+  const preCapped =
     filter === "all" && !showAllLow
       ? (() => {
           const high = filtered.filter((s) => s.severity === "high");
@@ -58,7 +60,9 @@ export function SignalsFeed({
           return [...high, ...med, ...low];
         })()
       : filtered;
-  const hiddenCount = filter === "all" && !showAllLow ? filtered.length - visible.length : 0;
+  const visible = preCapped.slice(0, pageSize);
+  const remaining = preCapped.length - visible.length;
+  const hiddenCount = filter === "all" && !showAllLow ? filtered.length - preCapped.length : 0;
 
   const counts = {
     all: signals.length,
@@ -109,7 +113,14 @@ export function SignalsFeed({
               />
             ))}
           </ul>
-          {hiddenCount > 0 ? (
+          {remaining > 0 ? (
+            <button
+              onClick={() => setPageSize((s) => s + PAGE_SIZE)}
+              className="mt-3 w-full rounded-md border border-dashed border-border py-2 text-xs text-muted-foreground hover:bg-muted/40"
+            >
+              Load {Math.min(remaining, PAGE_SIZE)} more
+            </button>
+          ) : hiddenCount > 0 ? (
             <button
               onClick={() => setShowAllLow(true)}
               className="mt-3 w-full rounded-md border border-dashed border-border py-2 text-xs text-muted-foreground hover:bg-muted/40"

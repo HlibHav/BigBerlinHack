@@ -1,4 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import { DraftCard } from "./draft-card";
+
+const PENDING_DEFAULT = 5;
 
 type Draft = {
   id: string;
@@ -75,8 +80,13 @@ export function DraftsQueue({
     variantsByDraft.set(v.parent_counter_draft_id, arr);
   }
 
+  const [showAllPending, setShowAllPending] = useState(false);
+  const [showDecided, setShowDecided] = useState(false);
+
   const pending = drafts.filter((d) => d.status === "draft");
   const decided = drafts.filter((d) => d.status !== "draft");
+  const visiblePending = showAllPending ? pending : pending.slice(0, PENDING_DEFAULT);
+  const hiddenPending = pending.length - visiblePending.length;
 
   return (
     <section className="rounded-lg border border-border bg-card p-4">
@@ -90,31 +100,55 @@ export function DraftsQueue({
           counter-draft» на med signal.
         </p>
       ) : (
-        <ul className="mt-3 space-y-3">
-          {pending.map((d) => (
-            <DraftCard
-              key={d.id}
-              draft={d}
-              variants={variantsByDraft.get(d.id) ?? []}
-              signal={d.signal_id ? signalsById.get(d.signal_id) ?? null : null}
-              narrativeVariants={narrativeVariantsByDraft.get(d.id) ?? []}
-              organizationId={organizationId}
-              brandSlug={brandSlug}
-            />
-          ))}
-          {decided.map((d) => (
-            <DraftCard
-              key={d.id}
-              draft={d}
-              variants={variantsByDraft.get(d.id) ?? []}
-              signal={d.signal_id ? signalsById.get(d.signal_id) ?? null : null}
-              narrativeVariants={narrativeVariantsByDraft.get(d.id) ?? []}
-              organizationId={organizationId}
-              brandSlug={brandSlug}
-              decided
-            />
-          ))}
-        </ul>
+        <>
+          <ul className="mt-3 space-y-3">
+            {visiblePending.map((d) => (
+              <DraftCard
+                key={d.id}
+                draft={d}
+                variants={variantsByDraft.get(d.id) ?? []}
+                signal={d.signal_id ? signalsById.get(d.signal_id) ?? null : null}
+                narrativeVariants={narrativeVariantsByDraft.get(d.id) ?? []}
+                organizationId={organizationId}
+                brandSlug={brandSlug}
+              />
+            ))}
+            {hiddenPending > 0 ? (
+              <li>
+                <button
+                  onClick={() => setShowAllPending(true)}
+                  className="w-full rounded-md border border-dashed border-border py-2 text-xs text-muted-foreground hover:bg-muted/40"
+                >
+                  Show {hiddenPending} more pending drafts
+                </button>
+              </li>
+            ) : null}
+            {decided.length > 0 ? (
+              <li>
+                <button
+                  onClick={() => setShowDecided((v) => !v)}
+                  className="w-full rounded-md border border-dashed border-border py-2 text-xs text-muted-foreground hover:bg-muted/40"
+                >
+                  {showDecided ? "Hide" : "Show"} {decided.length} decided drafts
+                </button>
+              </li>
+            ) : null}
+            {showDecided
+              ? decided.map((d) => (
+                  <DraftCard
+                    key={d.id}
+                    draft={d}
+                    variants={variantsByDraft.get(d.id) ?? []}
+                    signal={d.signal_id ? signalsById.get(d.signal_id) ?? null : null}
+                    narrativeVariants={narrativeVariantsByDraft.get(d.id) ?? []}
+                    organizationId={organizationId}
+                    brandSlug={brandSlug}
+                    decided
+                  />
+                ))
+              : null}
+          </ul>
+        </>
       )}
     </section>
   );

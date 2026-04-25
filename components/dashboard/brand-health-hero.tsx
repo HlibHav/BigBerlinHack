@@ -1,4 +1,4 @@
-type Report = {
+export type Report = {
   date: string;
   visibility: number;
   share_of_voice: number;
@@ -12,7 +12,7 @@ const sentimentNum: Record<Report["sentiment"], number> = {
   negative: 0.15,
 };
 
-function score(r: Report): number {
+export function score(r: Report): number {
   // 0-100. Composite: visibility 40% + sentiment 40% + position bonus 20%.
   const visPart = r.visibility * 40;
   const sentPart = sentimentNum[r.sentiment] * 40;
@@ -21,7 +21,7 @@ function score(r: Report): number {
   return Math.round(visPart + sentPart + posPart);
 }
 
-function bandColor(s: number): string {
+export function bandColor(s: number): string {
   if (s >= 75) return "text-emerald-600 dark:text-emerald-400";
   if (s >= 50) return "text-amber-600 dark:text-amber-400";
   return "text-red-600 dark:text-red-400";
@@ -121,6 +121,37 @@ function Stat({ label, value }: { label: string; value: string }) {
       <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 text-sm font-semibold capitalize">{value}</dd>
     </div>
+  );
+}
+
+export function BrandHealthMini({ history }: { history: Report[] }) {
+  if (history.length === 0) return null;
+  const latest = history[0];
+  const previous = history[1] ?? null;
+  const currentScore = score(latest);
+  const previousScore = previous ? score(previous) : null;
+  const delta = previousScore !== null ? currentScore - previousScore : null;
+
+  return (
+    <a
+      href="?tab=overview"
+      className="flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium hover:bg-secondary"
+      title={`Brand Health Score · ${latest.date}`}
+    >
+      <span className={bandColor(currentScore)}>{currentScore}</span>
+      {delta !== null && delta !== 0 ? (
+        <span
+          className={`text-[10px] ${
+            delta > 0
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-red-600 dark:text-red-400"
+          }`}
+        >
+          {delta > 0 ? "▲" : "▼"}
+          {Math.abs(delta)}
+        </span>
+      ) : null}
+    </a>
   );
 }
 
