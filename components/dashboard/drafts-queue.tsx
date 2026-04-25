@@ -24,7 +24,7 @@ type ContentVariant = {
   title: string | null;
   body: string;
   metadata: unknown;
-  status: string;
+  status: "sent" | "generated" | "edited" | "archived";
 };
 
 type Signal = {

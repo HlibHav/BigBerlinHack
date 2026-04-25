@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { formatRelative } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { reviewCounterDraft, approveWithVariant } from "@/app/actions/counter-draft";
+import { reviewCounterDraft, approveWithVariant, publishDraft } from "@/app/actions/counter-draft";
 import { triggerSimulator } from "@/app/actions/simulator";
 import { sourceMeta } from "@/components/dashboard/signal-card";
 
@@ -25,6 +25,7 @@ type ContentVariant = {
   channel: "blog" | "x_thread" | "linkedin";
   title: string | null;
   body: string;
+  status?: "generated" | "edited" | "sent" | "archived";
 };
 
 type Signal = {
@@ -35,6 +36,12 @@ type Signal = {
   source_type: "competitor" | "internal" | "external" | "peec_delta";
 };
 
+type PhraseAvailability = {
+  taken: boolean;
+  by: string[];
+  evidence_urls: string[];
+};
+
 type NarrativeVariant = {
   id: string;
   rank: number;
@@ -43,6 +50,10 @@ type NarrativeVariant = {
   predicted_sentiment: "positive" | "neutral" | "negative";
   avg_position: number | null;
   mention_rate: number;
+  metadata?: {
+    phrase_availability?: PhraseAvailability;
+    lift_vs_baseline?: number;
+  } | null;
 };
 
 const severityChip: Record<Signal["severity"], string> = {
@@ -264,6 +275,37 @@ export function DraftCard({
     });
   }
 
+  function onPublish() {
+    setOptimisticStatus("published");
+    const t = toast.loading("Publishing to channels…", {
+      description: "counter_draft → published, content_variants → sent",
+    });
+    startTransition(async () => {
+      try {
+        const result = await publishDraft({
+          draft_id: draft.id,
+          organization_id: organizationId,
+          brand_slug: brandSlug,
+        });
+        if (result.ok) {
+          toast.success("Published. Stepper closed.", {
+            id: t,
+            description: "Усі channel variants марковано як sent",
+          });
+        } else {
+          toast.error("Publish fail", { id: t, description: result.reason ?? "DB update failed" });
+          setOptimisticStatus(draft.status);
+        }
+      } catch (err) {
+        toast.error("Publish fail", {
+          id: t,
+          description: err instanceof Error ? err.message : "unknown",
+        });
+        setOptimisticStatus(draft.status);
+      }
+    });
+  }
+
   function onSimulate() {
     simBaseline.current = narrativeVariants.length;
     setSimulating(true);
@@ -446,7 +488,7 @@ export function DraftCard({
               .map((v) => (
                 <li key={v.id} className="rounded bg-background p-2">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                         #{v.rank}
                       </span>
@@ -454,6 +496,28 @@ export function DraftCard({
                       <span title={`predicted sentiment: ${v.predicted_sentiment}`}>
                         {sentimentEmoji[v.predicted_sentiment]}
                       </span>
+                      {typeof v.metadata?.lift_vs_baseline === "number" ? (
+                        <span
+                          title="mention rate − Peec baseline visibility"
+                          className={`rounded px-1.5 py-0.5 text-[10px] ${
+                            v.metadata.lift_vs_baseline >= 0
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                              : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                          }`}
+                        >
+                          {v.metadata.lift_vs_baseline >= 0 ? "▲" : "▼"} lift{" "}
+                          {(v.metadata.lift_vs_baseline * 100).toFixed(0)}%
+                        </span>
+                      ) : null}
+                      {v.metadata?.phrase_availability?.taken ? (
+                        <span
+                          title={`Used by: ${v.metadata.phrase_availability.by.join(", ")}`}
+                          className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                        >
+                          ⚠ phrase used by{" "}
+                          {v.metadata.phrase_availability.by.slice(0, 2).join(", ")}
+                        </span>
+                      ) : null}
                     </div>
                     <span className="text-[10px] text-muted-foreground">
                       mention {(v.mention_rate * 100).toFixed(0)}% · pos{" "}
@@ -478,10 +542,31 @@ export function DraftCard({
         </details>
       ) : null}
 
+      {variants.length > 0 && optimisticStatus === "approved" && variants.every((v) => v.status !== "sent") ? (
+        <div className="mt-3 flex flex-col gap-1 rounded-md border border-emerald-200 bg-emerald-50/50 p-2 text-xs dark:border-emerald-900 dark:bg-emerald-950/20 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-muted-foreground">
+            Усі 3 channel variants готові. Закриваємо loop?
+          </span>
+          <Button
+            size="sm"
+            onClick={onPublish}
+            disabled={isPending}
+            className="bg-emerald-600 text-white hover:bg-emerald-700"
+          >
+            📤 Publish to channels
+          </Button>
+        </div>
+      ) : null}
+
       {variants.length > 0 ? (
         <div className="mt-3 rounded-md border border-border bg-muted/30 p-2 text-xs">
           <p className="mb-2 font-semibold text-muted-foreground">
             📤 {variants.length} channel variants (W7 expand · blog · X · LinkedIn) — клікни, щоб розгорнути
+            {optimisticStatus === "published" || variants.every((v) => v.status === "sent") ? (
+              <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] uppercase text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                ✓ All sent
+              </span>
+            ) : null}
           </p>
           <ul className="space-y-1.5">
             {variants

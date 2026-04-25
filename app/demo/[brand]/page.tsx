@@ -78,13 +78,13 @@ export default async function DemoPage({
         "id, signal_id, status, body, channel_hint, tone_pillar, reasoning, evidence_refs, created_at"
       )
       .eq("organization_id", org.id)
-      .in("status", ["draft", "approved", "rejected"])
+      .in("status", ["draft", "approved", "rejected", "published"])
       .order("created_at", { ascending: false })
       .limit(10),
     supabase
       .from("narrative_variants")
       .select(
-        "id, simulator_run_id, seed_signal_id, seed_counter_draft_id, rank, body, score, score_reasoning, predicted_sentiment, avg_position, mention_rate, evidence_refs, created_at"
+        "id, simulator_run_id, seed_signal_id, seed_counter_draft_id, rank, body, score, score_reasoning, predicted_sentiment, avg_position, mention_rate, metadata, evidence_refs, created_at"
       )
       .eq("organization_id", org.id)
       .order("created_at", { ascending: false })
