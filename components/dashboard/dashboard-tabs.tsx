@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export type TabKey = "overview" | "signals" | "drafts" | "operations";
+export type TabKey = "overview" | "signals" | "drafts" | "operations" | "prelaunch";
 
 const TABS: Array<{ key: TabKey; label: string; icon: string }> = [
   { key: "overview", label: "Overview", icon: "📊" },
   { key: "signals", label: "Signals", icon: "🛰" },
   { key: "drafts", label: "Drafts", icon: "✍" },
   { key: "operations", label: "Operations", icon: "⚙" },
+  { key: "prelaunch", label: "Pre-Launch", icon: "🚀" },
 ];
 
 const VALID_KEYS = new Set<TabKey>(TABS.map((t) => t.key));

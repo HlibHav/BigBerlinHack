@@ -38,6 +38,19 @@ export const ContentExpandRequest = z.object({
 });
 export type ContentExpandRequest = z.infer<typeof ContentExpandRequest>;
 
+// ACTIVE — W5 Pre-Launch check (Tavily phrase availability + Peec baseline + LLM panel).
+// User submits proposed phrasing on /demo/[brand]?tab=prelaunch; pipeline returns
+// verdict (clear|caution|clash) + breakdown. Persisted у prelaunch_checks table.
+export const PrelaunchCheckRequest = z.object({
+  organization_id: z.string().uuid(),
+  brand_slug: z.string().min(1),
+  draft_phrasing: z.string().min(10).max(2000),
+  category_hint: z.string().max(200).optional(),
+  requested_by: z.string().uuid().nullable(),
+  check_id: z.string().uuid(),
+});
+export type PrelaunchCheckRequest = z.infer<typeof PrelaunchCheckRequest>;
+
 // [DEFERRED — W4 widget cut by hackathon scope, schema preserved for post-hackathon]
 export const WidgetRegenerate = z.object({
   organization_id: z.string().uuid(),
@@ -63,6 +76,7 @@ export const events = {
   "competitor-radar.tick": { data: CompetitorRadarTick },
   "narrative.simulate-request": { data: NarrativeSimulateRequest },
   "content.expand-request": { data: ContentExpandRequest },
+  "prelaunch.check-request": { data: PrelaunchCheckRequest },
   "widget.regenerate": { data: WidgetRegenerate },
 } as const;
 

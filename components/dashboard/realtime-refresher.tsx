@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 
-const TABLES = ["runs", "signals", "counter_drafts", "narrative_variants", "content_variants", "brief_deliveries"] as const;
+const TABLES = ["runs", "signals", "counter_drafts", "narrative_variants", "content_variants", "brief_deliveries", "prelaunch_checks"] as const;
 
 const tableLabel: Record<(typeof TABLES)[number], string> = {
   runs: "pipeline run",
@@ -14,6 +14,7 @@ const tableLabel: Record<(typeof TABLES)[number], string> = {
   narrative_variants: "narrative variant",
   content_variants: "content variant",
   brief_deliveries: "morning brief",
+  prelaunch_checks: "pre-launch check",
 };
 
 const POLL_INTERVAL_MS = 20_000;

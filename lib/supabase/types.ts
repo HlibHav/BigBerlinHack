@@ -498,6 +498,75 @@ export type Database = {
           },
         ]
       }
+      prelaunch_checks: {
+        Row: {
+          baseline: Json
+          brand_slug: string
+          category_hint: string | null
+          cost_usd_cents: number
+          created_at: string
+          created_by: string | null
+          draft_phrasing: string
+          evidence_refs: string[]
+          id: string
+          llm_panel_results: Json
+          organization_id: string
+          phrase_availability: Json
+          run_id: string | null
+          verdict: Database["public"]["Enums"]["prelaunch_verdict"]
+          verdict_reasoning: string
+        }
+        Insert: {
+          baseline: Json
+          brand_slug: string
+          category_hint?: string | null
+          cost_usd_cents?: number
+          created_at?: string
+          created_by?: string | null
+          draft_phrasing: string
+          evidence_refs?: string[]
+          id?: string
+          llm_panel_results: Json
+          organization_id: string
+          phrase_availability: Json
+          run_id?: string | null
+          verdict: Database["public"]["Enums"]["prelaunch_verdict"]
+          verdict_reasoning: string
+        }
+        Update: {
+          baseline?: Json
+          brand_slug?: string
+          category_hint?: string | null
+          cost_usd_cents?: number
+          created_at?: string
+          created_by?: string | null
+          draft_phrasing?: string
+          evidence_refs?: string[]
+          id?: string
+          llm_panel_results?: Json
+          organization_id?: string
+          phrase_availability?: Json
+          run_id?: string | null
+          verdict?: Database["public"]["Enums"]["prelaunch_verdict"]
+          verdict_reasoning?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prelaunch_checks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prelaunch_checks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
@@ -745,6 +814,7 @@ export type Database = {
         | "elevenlabs"
       counter_draft_channel: "x" | "linkedin" | "blog" | "multi"
       counter_draft_status: "draft" | "approved" | "rejected" | "published"
+      prelaunch_verdict: "clear" | "caution" | "clash"
       sentiment_label: "positive" | "neutral" | "negative"
       severity_level: "low" | "med" | "high"
       signal_source_type: "competitor" | "internal" | "external" | "peec_delta"
@@ -896,6 +966,7 @@ export const Constants = {
       ],
       counter_draft_channel: ["x", "linkedin", "blog", "multi"],
       counter_draft_status: ["draft", "approved", "rejected", "published"],
+      prelaunch_verdict: ["clear", "caution", "clash"],
       sentiment_label: ["positive", "neutral", "negative"],
       severity_level: ["low", "med", "high"],
       signal_source_type: ["competitor", "internal", "external", "peec_delta"],

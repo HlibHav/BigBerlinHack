@@ -7,6 +7,7 @@ import {
   MorningBriefDelivered,
   MorningBriefTick,
   NarrativeSimulateRequest,
+  PrelaunchCheckRequest,
   WidgetRegenerate,
 } from "@/lib/events";
 
@@ -22,9 +23,34 @@ describe("events registry", () => {
         "morning-brief.delivered",
         "morning-brief.tick",
         "narrative.simulate-request",
+        "prelaunch.check-request",
         "widget.regenerate",
       ].sort(),
     );
+  });
+});
+
+describe("PrelaunchCheckRequest", () => {
+  it("parses valid request", () => {
+    const parsed = PrelaunchCheckRequest.parse({
+      organization_id: ORG_ID,
+      brand_slug: "attio",
+      draft_phrasing: "AI-native CRM for founders",
+      requested_by: null,
+      check_id: RUN_ID,
+    });
+    expect(parsed.brand_slug).toBe("attio");
+  });
+
+  it("rejects draft_phrasing < 10 chars", () => {
+    const result = PrelaunchCheckRequest.safeParse({
+      organization_id: ORG_ID,
+      brand_slug: "attio",
+      draft_phrasing: "short",
+      requested_by: null,
+      check_id: RUN_ID,
+    });
+    expect(result.success).toBe(false);
   });
 });
 
