@@ -48,6 +48,8 @@ export function DraftCard({
   const [isPending, startTransition] = useTransition();
   const [optimisticStatus, setOptimisticStatus] = useState(draft.status);
   const [showVariants, setShowVariants] = useState(false);
+  const [simStatus, setSimStatus] = useState<"idle" | "running" | "ok" | "error">("idle");
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
 
   function onReview(status: "approved" | "rejected") {
     setOptimisticStatus(status);
@@ -67,13 +69,20 @@ export function DraftCard({
   }
 
   function onCopy() {
-    navigator.clipboard.writeText(draft.body).catch(console.error);
+    navigator.clipboard
+      .writeText(draft.body)
+      .then(() => {
+        setCopyStatus("copied");
+        setTimeout(() => setCopyStatus("idle"), 2000);
+      })
+      .catch(console.error);
   }
 
   function onSimulate() {
+    setSimStatus("running");
     startTransition(async () => {
       try {
-        await triggerSimulator({
+        const result = await triggerSimulator({
           organization_id: organizationId,
           brand_slug: brandSlug,
           seed_type: "competitor-move",
@@ -81,11 +90,24 @@ export function DraftCard({
           requested_by: null,
           num_variants: 3,
         });
+        setSimStatus(result.ok ? "ok" : "error");
+        setTimeout(() => setSimStatus("idle"), 8000);
       } catch (err) {
         console.error("triggerSimulator failed", err);
+        setSimStatus("error");
+        setTimeout(() => setSimStatus("idle"), 4000);
       }
     });
   }
+
+  const simLabel =
+    simStatus === "running"
+      ? "Simulating…"
+      : simStatus === "ok"
+      ? "✓ Triggered — refresh у ~60s"
+      : simStatus === "error"
+      ? "✗ Failed"
+      : "↻ Simulate alternatives";
 
   return (
     <li className={`rounded-md border border-border bg-background p-3 ${decided ? "opacity-70" : ""}`}>
@@ -113,10 +135,15 @@ export function DraftCard({
             ✗ Reject
           </Button>
           <Button size="sm" variant="ghost" onClick={onCopy}>
-            ⧉ Copy
+            {copyStatus === "copied" ? "✓ Copied" : "⧉ Copy"}
           </Button>
-          <Button size="sm" variant="ghost" onClick={onSimulate} disabled={isPending}>
-            ↻ Simulate alternatives
+          <Button
+            size="sm"
+            variant={simStatus === "error" ? "destructive" : "ghost"}
+            onClick={onSimulate}
+            disabled={isPending || simStatus === "running"}
+          >
+            {simLabel}
           </Button>
         </div>
       ) : null}
