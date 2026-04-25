@@ -17,7 +17,7 @@
 1. User reviews counter-draft у dashboard queue (W9 output, severity=high).
 2. Clicks **"Approve"** → status flips до `approved`. Toast "Approved + generating multi-channel..."
 3. **Auto-trigger** W7 Inngest function з `parent_counter_draft_id`.
-4. Within ~30s, 4 channel variants з'являються у "Multi-channel" section (під drafts queue):
+4. Within ~30s, 3 channel variants з'являються у "Multi-channel" section (під drafts queue):
    - Blog post (~800 words, з title)
    - X thread (5 tweets, як array у metadata)
    - LinkedIn post (~200 words)

@@ -28,7 +28,7 @@ Plugin-era docs — у `_archive/` як superseded.
 
 **W6′ — Morning brief Slack.** `[ACTIVE]` Daily 8am UTC text summary (~200w) → real Slack send via incoming webhook. Persists у `brief_deliveries` table. Spec → `features/morning-brief.md`.
 
-**W7 — Multi-channel expand.** `[ACTIVE]` Один approved counter-draft → 4 variants (blog ~800w, X thread 5 tweets, LinkedIn ~200w, email subject+body). Auto-trigger на counter-draft approval. Persists у `content_variants`. Spec → `features/content-expansion.md`.
+**W7 — Multi-channel expand.** `[ACTIVE]` Один approved counter-draft → 3 variants (blog ~800w, X thread 3-7 tweets, LinkedIn ~200w). Auto-trigger на counter-draft approval. Persists у `content_variants`. Spec → `features/content-expansion.md`.
 
 **W9 — Competitor radar.** `[ACTIVE]` Peec snapshot (`data/peec-snapshot.json`, refreshed manually via Claude Code MCP session) + Tavily fresh news → класифікує signals по severity+sentiment → для `severity=high` автоматично генерує counter-draft зі `status='draft'`. Human approval обов'язкова перед publish (див. `decisions/2026-04-24-counter-draft-severity-high-only.md`).
 

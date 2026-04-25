@@ -388,7 +388,7 @@ Dashboard → Functions → click function → "Pause". Useful коли знай
 - [ ] Open `/demo/attio` + Inngest UI + Slack у split screen.
 - [ ] Start з 1-sentence pitch ("BBH = intelligence layer над Peec MCP").
 - [ ] Live trigger "Run radar now" → watch Inngest trace → new signal + counter-draft.
-- [ ] Approve counter-draft → W7 auto-spawns → 4 channel variants render.
+- [ ] Approve counter-draft → W7 auto-spawns → 3 channel variants render.
 - [ ] Click "Send today's brief now" → real Slack post → show jury Slack.
 
 **T+0 (post-demo):**
