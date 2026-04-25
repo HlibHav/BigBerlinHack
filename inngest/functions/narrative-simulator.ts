@@ -24,6 +24,11 @@ import { SimulatorRunStatsSchema } from "@/lib/schemas/run-stats";
 import { generateObjectAnthropic } from "@/lib/services/anthropic";
 import { sumRunCost } from "@/lib/services/cost";
 import { generateObjectOpenAI } from "@/lib/services/openai";
+import {
+  getLatestBrandReport,
+  loadPeecSnapshot,
+} from "@/lib/services/peec-snapshot";
+import { tavilySearch } from "@/lib/services/tavily";
 import { createServiceClient } from "@/lib/supabase/server";
 
 // ---------------------------------------------------------------------------
@@ -31,26 +36,26 @@ import { createServiceClient } from "@/lib/supabase/server";
 // ---------------------------------------------------------------------------
 
 /**
- * Hackathon-static brand identity. Post-hackathon — DB lookup
- * (organizations.brand_voice_pillars / .brand_name). For Attio demo we hardcode
- * "confident-builder" tone and "Attio" mention target — the only org we ship
- * на hackathon.
+ * Fallback brand voice — used when org doesn't yet have brand_voice_pillars
+ * persisted. Brand name + landscape data come from Peec snapshot at runtime.
  */
-const HACKATHON_BRAND_NAME = "Attio";
-const HACKATHON_BRAND_VOICE = "confident-builder";
+const FALLBACK_BRAND_VOICE = "confident-builder";
 
 /**
- * Five evergreen prompts that probe LLM brand recall in the CRM/relationship
- * data category — same set across both models so mention_rate / avg_position
- * are comparable. Refresh post-hackathon when we move to per-org prompt sets.
+ * Fallback prompts — used when Peec snapshot has fewer than 3 prompts (e.g.,
+ * fresh org without tracked queries yet). These are the original 5 evergreen
+ * CRM-category probes.
  */
-const SCORING_PROMPTS = [
+const FALLBACK_SCORING_PROMPTS = [
   "What are the top CRM platforms for high-growth startups in 2026?",
   "Which modern CRM tools best handle relationship intelligence at scale?",
   "List the leading alternatives to Salesforce for tech companies.",
   "Which CRM platforms have the best data model for B2B SaaS teams?",
   "Recommend a CRM with strong API and customization for product teams.",
 ] as const;
+
+const PHRASE_PENALTY = 0.7; // multiplier when phrase_availability.taken === true
+const MAX_TAVILY_PER_W5_RUN = 5;
 
 /**
  * Score formula per CONTRACTS.md §2.5:
@@ -79,6 +84,24 @@ const BrandRankingSchema = z.object({
   reasoning: z.string().min(1),
 });
 type BrandRanking = z.infer<typeof BrandRankingSchema>;
+
+/**
+ * Claim phrase extraction — pull the most distinctive 3-7 word phrase from a
+ * variant body. Used as the Tavily query for phrase-availability check.
+ */
+const ClaimPhraseSchema = z.object({
+  phrase: z
+    .string()
+    .min(8)
+    .max(80)
+    .describe("3-7 word distinctive claim phrase (no quotes, no punctuation at ends)"),
+});
+
+type PhraseAvailability = {
+  taken: boolean;
+  by: string[];
+  evidence_urls: string[];
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -169,14 +192,20 @@ export async function __narrativeSimulatorHandler({
     });
 
     // -----------------------------------------------------------------------
-    // 1. gather-context
+    // 1. gather-context — Peec snapshot baseline (prompts + own brand + competitors)
     // -----------------------------------------------------------------------
+    //   Reads peec-snapshot.json для:
+    //   • own brand name (is_own=true) + domains (used як exclude_domains у phrase-availability)
+    //   • competitor names + aliases (used для phrase availability detection)
+    //   • tracked prompts[] — replace 5 hardcoded CRM probes з real landscape
+    //   • baseline brand_report (visibility, position, sentiment) для lift_vs_baseline
+    //   Якщо snapshot < 3 prompts — fallback на FALLBACK_SCORING_PROMPTS.
     const context = await step.run("gather-context", async () => {
       const supabase = createServiceClient();
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
         .toISOString();
 
-      const [signalsRes, draftsRes] = await Promise.all([
+      const [signalsRes, draftsRes, snapshot] = await Promise.all([
         supabase
           .from("signals")
           .select("id, summary, severity, sentiment, source_url, created_at")
@@ -191,18 +220,56 @@ export async function __narrativeSimulatorHandler({
           .eq("status", "draft")
           .order("created_at", { ascending: false })
           .limit(10),
+        loadPeecSnapshot().catch(() => null),
       ]);
 
       if (signalsRes.error) throw signalsRes.error;
       if (draftsRes.error) throw draftsRes.error;
 
-      // Hackathon: hardcoded brand voice pillars. Post-hackathon: read from
-      // organizations.brand_voice_pillars (jsonb column to be added).
+      // Resolve own brand from Peec snapshot — fallback "Attio" if snapshot missing
+      const ownBrand = snapshot?.brands.find((b) => b.is_own);
+      const brand_name = ownBrand?.name ?? "Attio";
+      const own_domains = ownBrand?.domains ?? ["attio.com"];
+      const own_aliases = ownBrand?.aliases ?? [];
+
+      // Competitor list (with aliases) — used downstream by phrase-availability
+      // detector to flag "phrase used by competitor X".
+      const competitors =
+        snapshot?.brands
+          .filter((b) => !b.is_own)
+          .map((b) => ({
+            name: b.name,
+            domains: b.domains,
+            aliases: b.aliases,
+          })) ?? [];
+
+      // Panel prompts — Peec snapshot is the SSOT once it has ≥3 entries.
+      const peecPrompts = snapshot?.prompts.map((p) => p.text) ?? [];
+      const panel_prompts: readonly string[] =
+        peecPrompts.length >= 3 ? peecPrompts : FALLBACK_SCORING_PROMPTS;
+
+      // Baseline visibility / position / sentiment for own brand (latest day)
+      const baselineReport = snapshot
+        ? getLatestBrandReport(snapshot, brand_name)
+        : null;
+      const baseline = baselineReport
+        ? {
+            visibility: baselineReport.visibility,
+            position: baselineReport.position,
+            sentiment: baselineReport.sentiment as "positive" | "neutral" | "negative",
+          }
+        : null;
+
       return {
         recent_signals: signalsRes.data ?? [],
         active_drafts: draftsRes.data ?? [],
-        brand_voice_pillars: [HACKATHON_BRAND_VOICE],
-        brand_name: HACKATHON_BRAND_NAME,
+        brand_voice_pillars: [FALLBACK_BRAND_VOICE],
+        brand_name,
+        own_domains,
+        own_aliases,
+        competitors,
+        panel_prompts,
+        baseline,
       };
     });
 
@@ -254,15 +321,103 @@ export async function __narrativeSimulatorHandler({
     });
 
     // -----------------------------------------------------------------------
-    // 3. score-variants — 5 prompts × 2 models per variant
+    // 2.5. phrase-availability — extract distinctive claim phrase per variant
+    //      і прогнати через Tavily (exclude own domains) щоб знайти clash
+    //      з competitor sites. Capped MAX_TAVILY_PER_W5_RUN.
     // -----------------------------------------------------------------------
-    const scored = await step.run("score-variants", async () => {
-      const out: NarrativeVariant[] = [];
+    const phraseFlags = await step.run("phrase-availability", async () => {
+      const result: Map<number, PhraseAvailability> = new Map();
+      const variants = generated.variants.slice(0, MAX_TAVILY_PER_W5_RUN);
 
-      for (const variant of generated.variants) {
+      for (let i = 0; i < variants.length; i++) {
+        const variant = variants[i];
+        try {
+          // Extract phrase via Claude Haiku (cheap, deterministic)
+          const { object } = await generateObjectAnthropic({
+            schema: ClaimPhraseSchema,
+            prompt: [
+              `Extract the single most distinctive 3-7 word claim phrase from the following counter-narrative.`,
+              `It must be a coherent verb-noun phrase that someone might trademark or own as positioning — not generic words.`,
+              ``,
+              `Body:`,
+              `"""${variant.body.slice(0, 800)}"""`,
+              ``,
+              `Return only the phrase (no quotes, no period at the end).`,
+            ].join("\n"),
+            model: "claude-haiku-4-5-20251001",
+            organization_id,
+            operation: "narrative-simulator:phrase-extract",
+            schemaName: "ClaimPhrase",
+            temperature: 0.1,
+            run_id: runRow.id,
+          });
+          const phrase = object.phrase.trim();
+
+          // Tavily search excluding our own domains
+          const tavilyRes = await tavilySearch({
+            query: phrase,
+            exclude_domains: context.own_domains,
+            max_results: 3,
+            topic: "general",
+            organization_id,
+            run_id: runRow.id,
+          });
+
+          // Detect competitor mentions in result titles + content
+          const matches: Array<{ name: string; url: string }> = [];
+          for (const r of tavilyRes.results) {
+            const haystack = `${r.title ?? ""} ${r.content ?? ""}`.toLowerCase();
+            for (const comp of context.competitors) {
+              const allNames = [comp.name, ...comp.aliases].map((n) =>
+                n.toLowerCase(),
+              );
+              const hit = allNames.some((n) => haystack.includes(n));
+              if (hit && !matches.find((m) => m.name === comp.name)) {
+                matches.push({ name: comp.name, url: r.url });
+              }
+            }
+          }
+
+          result.set(i, {
+            taken: matches.length > 0,
+            by: matches.map((m) => m.name),
+            evidence_urls: matches.map((m) => m.url),
+          });
+        } catch (err) {
+          logger.info("[phrase-availability] skipped variant", {
+            i,
+            err: (err as Error).message,
+          });
+          // On failure: assume not taken (don't penalize on infra error)
+          result.set(i, { taken: false, by: [], evidence_urls: [] });
+        }
+      }
+      return Array.from(result.entries()).map(([idx, value]) => ({ idx, value }));
+    });
+
+    const phraseFlagsByIdx = new Map<number, PhraseAvailability>(
+      phraseFlags.map((f) => [f.idx, f.value] as const),
+    );
+
+    // -----------------------------------------------------------------------
+    // 3. score-variants — N panel prompts × 2 models per variant
+    //    Now uses Peec snapshot prompts (or fallback) and dynamic brand_name.
+    //    Applies phrase-availability penalty + computes lift_vs_baseline.
+    // -----------------------------------------------------------------------
+    type ScoredEntry = NarrativeVariant & {
+      _idx: number;
+      _phrase: PhraseAvailability;
+      _lift: number | null;
+    };
+
+    const scored = await step.run("score-variants", async () => {
+      const out: ScoredEntry[] = [];
+
+      for (let vi = 0; vi < generated.variants.length; vi++) {
+        const variant = generated.variants[vi];
         const positions: Array<number | null> = [];
 
-        for (const prompt of SCORING_PROMPTS) {
+        for (const prompt of context.panel_prompts) {
           // The variant `body` becomes context the panel "knows" about — we
           // ask each panel which brands it would rank for `prompt` after
           // reading the variant. Mention/position then proxy how persuasively
@@ -308,16 +463,31 @@ export async function __narrativeSimulatorHandler({
         }
 
         const { mention_rate, avg_position } = aggregateScores(positions);
-        const score = computeScore(mention_rate, avg_position);
+        let score = computeScore(mention_rate, avg_position);
 
-        out.push(
-          NarrativeVariantSchema.parse({
-            ...variant,
-            mention_rate,
-            avg_position,
-            score,
-          }),
-        );
+        // Apply phrase-availability penalty
+        const phrase = phraseFlagsByIdx.get(vi) ?? {
+          taken: false,
+          by: [],
+          evidence_urls: [],
+        };
+        if (phrase.taken) {
+          score = Math.max(0, Math.min(1, score * PHRASE_PENALTY));
+        }
+
+        // Lift vs Peec baseline visibility (positive = variant outperforms current org tracking)
+        const lift =
+          context.baseline !== null
+            ? mention_rate - context.baseline.visibility
+            : null;
+
+        const parsed = NarrativeVariantSchema.parse({
+          ...variant,
+          mention_rate,
+          avg_position,
+          score,
+        });
+        out.push({ ...parsed, _idx: vi, _phrase: phrase, _lift: lift });
       }
 
       // Re-rank by computed score so rank=1 is the strongest variant after
@@ -353,6 +523,11 @@ export async function __narrativeSimulatorHandler({
         avg_position: v.avg_position,
         mention_rate: v.mention_rate,
         evidence_refs: v.evidence_refs,
+        metadata: {
+          phrase_availability: v._phrase,
+          lift_vs_baseline: v._lift,
+          baseline: context.baseline,
+        } as unknown as Json,
       }));
 
       const { error } = await supabase.from("narrative_variants").insert(rows);
@@ -370,7 +545,7 @@ export async function __narrativeSimulatorHandler({
         started_at: startedAt,
         duration_seconds: Math.round((Date.now() - startMs) / 1000),
         variants_generated: persistedCount,
-        prompts_per_variant: SCORING_PROMPTS.length,
+        prompts_per_variant: context.panel_prompts.length,
         models_used: ["gpt-4o-mini", "claude-haiku-4-5-20251001"],
         cost_usd_cents,
       });
