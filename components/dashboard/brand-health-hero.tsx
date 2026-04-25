@@ -1,3 +1,7 @@
+"use client";
+
+import { useMemo, useState } from "react";
+
 export type Report = {
   date: string;
   visibility: number;
@@ -35,13 +39,24 @@ function bandLabel(s: number): string {
   return "Critical";
 }
 
+// Distinct stroke colors for up to 6 brands у multi-line chart. Self brand —
+// emerald (matches existing band color). Competitors — other hues.
+const BRAND_COLORS = ["#10b981", "#3b82f6", "#f97316", "#a855f7", "#ec4899", "#eab308"];
+
+type Window = 7 | 30 | 90;
+
 export function BrandHealthHero({
   history,
   brandName,
+  competitorHistories,
 }: {
   history: Report[]; // newest-first
   brandName: string;
+  competitorHistories?: Array<{ brand_name: string; history: Report[] }>;
 }) {
+  const [showTrends, setShowTrends] = useState(false);
+  const [window, setWindow] = useState<Window>(30);
+
   if (history.length === 0) {
     return (
       <section className="rounded-lg border border-dashed border-border bg-card/50 p-4">
@@ -111,6 +126,40 @@ export function BrandHealthHero({
       </dl>
 
       {history.length > 1 ? <Sparkline series={history.slice().reverse().map(score)} /> : null}
+
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <button
+          onClick={() => setShowTrends((v) => !v)}
+          className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+        >
+          {showTrends ? "▾ Hide trends" : "▸ Show 30-day trends (Attio + competitors)"}
+        </button>
+        {showTrends ? (
+          <div className="flex gap-1.5">
+            {([7, 30, 90] as const).map((w) => (
+              <button
+                key={w}
+                onClick={() => setWindow(w)}
+                className={`rounded-full px-2.5 py-0.5 text-xs uppercase tracking-wide transition-colors ${
+                  window === w
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground hover:opacity-80"
+                }`}
+              >
+                {w}d
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {showTrends ? (
+        <TrendChart
+          window={window}
+          self={{ brand_name: brandName, history }}
+          competitors={competitorHistories ?? []}
+        />
+      ) : null}
     </section>
   );
 }
@@ -175,5 +224,163 @@ function Sparkline({ series }: { series: number[] }) {
     >
       <polyline points={points} fill="none" stroke="currentColor" strokeWidth="2" />
     </svg>
+  );
+}
+
+/**
+ * Multi-line trend chart — Y axis = brand health score (0-100), X axis = date.
+ * Self brand colored emerald, competitors get distinct hues. Window selector
+ * filters history до останніх N днів.
+ */
+function TrendChart({
+  window,
+  self,
+  competitors,
+}: {
+  window: Window;
+  self: { brand_name: string; history: Report[] };
+  competitors: Array<{ brand_name: string; history: Report[] }>;
+}) {
+  const series = useMemo(() => {
+    const allBrands = [self, ...competitors];
+    return allBrands.map((b, i) => {
+      const trimmed = b.history.slice(0, window).slice().reverse(); // oldest → newest
+      return {
+        brand_name: b.brand_name,
+        color: BRAND_COLORS[i % BRAND_COLORS.length],
+        points: trimmed.map((r) => ({ date: r.date, score: score(r) })),
+      };
+    });
+  }, [self, competitors, window]);
+
+  // Collect unique dates across all brands sorted asc для x-axis.
+  const allDates = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of series) for (const p of s.points) set.add(p.date);
+    return Array.from(set).sort();
+  }, [series]);
+
+  if (allDates.length < 2) {
+    return (
+      <p className="mt-3 text-xs text-muted-foreground">
+        Need ≥2 days з brand_report data — refresh peec-snapshot.json для більшого діапазону.
+      </p>
+    );
+  }
+
+  const w = 800;
+  const h = 180;
+  const padX = 40;
+  const padY = 16;
+  const xStep = (w - padX - 8) / Math.max(1, allDates.length - 1);
+  const yScale = (s: number) => padY + (h - padY * 2) * (1 - s / 100);
+  const dateIndex = new Map(allDates.map((d, i) => [d, i]));
+
+  return (
+    <div className="mt-3 rounded-md border border-border bg-background p-2">
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        preserveAspectRatio="none"
+        className="h-44 w-full"
+        aria-label={`Brand health ${window}-day trend (${series.length} brands)`}
+      >
+        {/* Y-axis grid lines at 25/50/75 */}
+        {[25, 50, 75].map((v) => (
+          <g key={v}>
+            <line
+              x1={padX}
+              x2={w - 8}
+              y1={yScale(v)}
+              y2={yScale(v)}
+              className="stroke-border"
+              strokeDasharray="2 2"
+              strokeWidth={1}
+            />
+            <text
+              x={padX - 4}
+              y={yScale(v) + 3}
+              className="fill-muted-foreground text-[9px]"
+              textAnchor="end"
+            >
+              {v}
+            </text>
+          </g>
+        ))}
+        {/* X-axis labels (first/last) */}
+        <text
+          x={padX}
+          y={h - 2}
+          className="fill-muted-foreground text-[9px]"
+          textAnchor="start"
+        >
+          {allDates[0]}
+        </text>
+        <text
+          x={w - 8}
+          y={h - 2}
+          className="fill-muted-foreground text-[9px]"
+          textAnchor="end"
+        >
+          {allDates[allDates.length - 1]}
+        </text>
+
+        {/* Brand polylines */}
+        {series.map((s) => {
+          if (s.points.length === 0) return null;
+          const pts = s.points
+            .map((p) => {
+              const xi = dateIndex.get(p.date) ?? 0;
+              return `${padX + xi * xStep},${yScale(p.score)}`;
+            })
+            .join(" ");
+          return (
+            <g key={s.brand_name}>
+              <polyline
+                points={pts}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={2}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+              {s.points.map((p) => {
+                const xi = dateIndex.get(p.date) ?? 0;
+                return (
+                  <circle
+                    key={`${s.brand_name}-${p.date}`}
+                    cx={padX + xi * xStep}
+                    cy={yScale(p.score)}
+                    r={2}
+                    fill={s.color}
+                  >
+                    <title>{`${s.brand_name} · ${p.date} · score ${p.score}`}</title>
+                  </circle>
+                );
+              })}
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Legend */}
+      <ul className="mt-2 flex flex-wrap gap-3 text-[11px]">
+        {series.map((s) => {
+          const last = s.points[s.points.length - 1];
+          return (
+            <li key={s.brand_name} className="flex items-center gap-1.5">
+              <span
+                className="inline-block h-2 w-3 rounded-sm"
+                style={{ backgroundColor: s.color }}
+                aria-hidden
+              />
+              <span className="font-medium">{s.brand_name}</span>
+              {last ? (
+                <span className="text-muted-foreground">· score {last.score}</span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
