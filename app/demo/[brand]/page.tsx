@@ -10,6 +10,7 @@ import { MorningBriefPanel } from "@/components/dashboard/morning-brief-panel";
 import { CostPanel } from "@/components/dashboard/cost-panel";
 import { PipelineStatus } from "@/components/dashboard/pipeline-status";
 import { BrandHealthHero } from "@/components/dashboard/brand-health-hero";
+import { RealtimeRefresher } from "@/components/dashboard/realtime-refresher";
 import { V2Footer } from "@/components/dashboard/v2-footer";
 import { PeecDataSourceBadge } from "@/components/dashboard/peec-data-source-badge";
 import { loadPeecSnapshot, getBrandReportHistory } from "@/lib/services/peec-snapshot";
@@ -154,6 +155,8 @@ export default async function DemoPage({
 
   return (
     <main className="mx-auto max-w-5xl px-3 py-4 space-y-4 sm:px-4 sm:py-6 sm:space-y-6">
+      <RealtimeRefresher organizationId={org.id} />
+
       <header className="flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
