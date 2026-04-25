@@ -19,7 +19,17 @@ const sentimentEmoji: Record<string, string> = {
 
 export function SimulatorOutputs({ variants }: { variants: Variant[] }) {
   if (variants.length === 0) {
-    return null;
+    return (
+      <section className="rounded-lg border border-dashed border-border bg-card/50 p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Simulator outputs — ranked variants
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Жодного simulator run. Натисни <span className="font-mono text-xs">↻ Simulate alternatives</span>{" "}
+          на counter-draft нижче — W5 згенерує 3 ranked variants за ~60s.
+        </p>
+      </section>
+    );
   }
 
   // Group by simulator_run_id, show latest only

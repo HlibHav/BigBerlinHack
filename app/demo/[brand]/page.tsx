@@ -7,8 +7,12 @@ import { DraftsQueue } from "@/components/dashboard/drafts-queue";
 import { SimulatorOutputs } from "@/components/dashboard/simulator-outputs";
 import { MultiChannelPanel } from "@/components/dashboard/multi-channel-panel";
 import { MorningBriefPanel } from "@/components/dashboard/morning-brief-panel";
+import { CostPanel } from "@/components/dashboard/cost-panel";
+import { PipelineStatus } from "@/components/dashboard/pipeline-status";
+import { BrandHealthHero } from "@/components/dashboard/brand-health-hero";
 import { V2Footer } from "@/components/dashboard/v2-footer";
 import { PeecDataSourceBadge } from "@/components/dashboard/peec-data-source-badge";
+import { loadPeecSnapshot, getBrandReportHistory } from "@/lib/services/peec-snapshot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,24 +36,27 @@ export default async function DemoPage({
     notFound();
   }
 
+  // Cost ledger query potentially missing у generated types (cast handled у CostPanel side).
+  const startOfDayUtc = new Date();
+  startOfDayUtc.setUTCHours(0, 0, 0, 0);
+
   // Fan-out queries (parallel via Promise.all)
   const [
-    { data: latestRun },
+    { data: recentRuns },
     { data: competitors },
     { data: signals },
     { data: drafts },
     { data: variants },
     { data: contentVariants },
     { data: brief },
+    { data: costRows },
   ] = await Promise.all([
     supabase
       .from("runs")
       .select("id, function_name, ok, stats, started_at, finished_at")
       .eq("organization_id", org.id)
-      .eq("function_name", "competitor-radar")
       .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .limit(20),
     supabase
       .from("competitors")
       .select("id, display_name, relationship, homepage_url, handles, is_active")
@@ -95,15 +102,63 @@ export default async function DemoPage({
       .order("delivery_date", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // cost_ledger may not exist у generated types yet — cast through any
+    (supabase as unknown as {
+      from: (t: string) => {
+        select: (s: string) => {
+          eq: (k: string, v: string) => {
+            gte: (k: string, v: string) => Promise<{ data: Array<{ service: string; usd_cents: number }> | null }>;
+          };
+        };
+      };
+    })
+      .from("cost_ledger")
+      .select("service, usd_cents")
+      .eq("organization_id", org.id)
+      .gte("created_at", startOfDayUtc.toISOString()),
   ]);
 
+  // Brand health: 7-day Peec history для self brand. Snapshot bundled у serverless.
+  let healthHistory: Array<{
+    date: string;
+    visibility: number;
+    share_of_voice: number;
+    sentiment: "positive" | "neutral" | "negative";
+    position: number | null;
+  }> = [];
+  try {
+    const snapshot = await loadPeecSnapshot();
+    healthHistory = getBrandReportHistory(snapshot, org.display_name, 7).map((r) => ({
+      date: r.date,
+      visibility: r.visibility,
+      share_of_voice: r.share_of_voice,
+      sentiment: r.sentiment,
+      position: r.position,
+    }));
+  } catch {
+    // peec-snapshot read failure — render empty state у hero
+  }
+
+  // Latest run per function — для PipelineStatus + AuditPanel
+  const allRuns = recentRuns ?? [];
+  function latestFor(fn: string): typeof allRuns[number] | null {
+    return allRuns.find((r) => r.function_name === fn) ?? null;
+  }
+  const latestRun = latestFor("competitor-radar");
+  const pipelineRuns = {
+    radar: latestRun,
+    simulator: latestFor("narrative-simulator"),
+    expand: latestFor("content-expand"),
+    brief: latestFor("morning-brief"),
+  };
+
   return (
-    <main className="mx-auto max-w-5xl px-4 py-6 space-y-6">
-      <header className="flex items-baseline justify-between gap-4">
+    <main className="mx-auto max-w-5xl px-3 py-4 space-y-4 sm:px-4 sm:py-6 sm:space-y-6">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
             {org.display_name}
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
+            <span className="ml-2 text-xs font-normal text-muted-foreground sm:text-sm">
               brand intelligence
             </span>
           </h1>
@@ -113,6 +168,10 @@ export default async function DemoPage({
         </div>
         <PeecDataSourceBadge />
       </header>
+
+      <BrandHealthHero history={healthHistory} brandName={org.display_name} />
+
+      <PipelineStatus runs={pipelineRuns} />
 
       <AuditPanel
         organizationId={org.id}
@@ -145,6 +204,8 @@ export default async function DemoPage({
         organizationId={org.id}
         brandSlug={org.slug}
       />
+
+      <CostPanel rows={costRows ?? []} />
 
       <V2Footer />
     </main>

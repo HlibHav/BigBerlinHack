@@ -22,6 +22,12 @@ export function CompetitorsPanel({ competitors }: { competitors: Competitor[] })
         </span>
       </div>
 
+      {competitors.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Жодного tracked brand. Seed defaults через <span className="font-mono text-xs">supabase/seed.sql</span>.
+        </p>
+      ) : null}
+
       <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {competitors.map((c) => (
           <li

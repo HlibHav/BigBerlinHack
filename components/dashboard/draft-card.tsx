@@ -33,6 +33,57 @@ const statusColor: Record<string, string> = {
   published: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
 };
 
+function DraftStepper({
+  status,
+  variantsCount,
+}: {
+  status: "draft" | "approved" | "rejected" | "published";
+  variantsCount: number;
+}) {
+  // Stage states: 0 done, 1 active, 2 pending, 3 skipped
+  const isRejected = status === "rejected";
+  const stages: Array<{ label: string; state: 0 | 1 | 2 | 3 }> = [
+    { label: "Signal", state: 0 },
+    { label: "Draft", state: 0 },
+    {
+      label: "Approve",
+      state: isRejected ? 3 : status === "draft" ? 1 : 0,
+    },
+    {
+      label: "Expand",
+      state: isRejected ? 3 : variantsCount === 0 ? (status === "approved" ? 1 : 2) : 0,
+    },
+    {
+      label: "Publish",
+      state: isRejected ? 3 : status === "published" ? 0 : variantsCount > 0 ? 1 : 2,
+    },
+  ];
+
+  const stateClass = (s: 0 | 1 | 2 | 3): string => {
+    if (s === 0) return "bg-emerald-500 text-white";
+    if (s === 1) return "bg-primary text-primary-foreground ring-2 ring-primary/30";
+    if (s === 3) return "bg-zinc-200 text-zinc-500 dark:bg-zinc-800 line-through";
+    return "bg-secondary text-muted-foreground";
+  };
+
+  return (
+    <ol className="mt-2 flex items-center gap-1 overflow-x-auto text-[10px] uppercase tracking-wider">
+      {stages.map((s, i) => (
+        <li key={s.label} className="flex items-center gap-1">
+          <span
+            className={`flex h-5 items-center rounded-full px-2 ${stateClass(s.state)}`}
+          >
+            {s.state === 0 ? "✓" : s.state === 3 ? "✗" : i + 1} <span className="ml-1">{s.label}</span>
+          </span>
+          {i < stages.length - 1 ? (
+            <span className="h-px w-3 shrink-0 bg-border" aria-hidden />
+          ) : null}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export function DraftCard({
   draft,
   variants,
@@ -141,10 +192,33 @@ export function DraftCard({
         <span className="shrink-0 text-xs text-muted-foreground">{formatRelative(draft.created_at)}</span>
       </div>
 
+      <DraftStepper status={optimisticStatus} variantsCount={variants.length} />
+
       <p className="mt-2 whitespace-pre-wrap text-sm">{draft.body}</p>
 
+      {draft.evidence_refs.length > 0 ? (
+        <details className="mt-2 text-xs">
+          <summary className="cursor-pointer text-muted-foreground hover:underline">
+            Evidence ({draft.evidence_refs.length})
+          </summary>
+          <ul className="mt-1 space-y-0.5 pl-3">
+            {draft.evidence_refs.map((ref, i) => (
+              <li key={i} className="break-all">
+                {ref.startsWith("http") ? (
+                  <a href={ref} target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
+                    {ref.replace(/^https?:\/\//, "").slice(0, 80)}
+                  </a>
+                ) : (
+                  <span className="font-mono text-muted-foreground">{ref}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+
       {!decided && optimisticStatus === "draft" ? (
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Button size="sm" onClick={() => onReview("approved")} disabled={isPending}>
             ✓ Approve → Expand
           </Button>
