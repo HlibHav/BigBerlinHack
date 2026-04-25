@@ -1,13 +1,13 @@
 // W7 multi-channel expansion output. Per CONTRACTS.md §2.6.
-// Exactly 4 variants per parent counter-draft: blog + x_thread + linkedin + email.
+// Exactly 3 variants per parent counter-draft: blog + x_thread + linkedin.
+// Email channel deprecated 2026-04-25 — поза demo scope, прибрано.
 // Per-channel metadata refines:
 //   blog: { meta_description, slug_suggestion }
 //   x_thread: { tweets: string[] }    -- each ≤280 chars
 //   linkedin: { hashtags: string[] }
-//   email: { subject, preheader }
 import { z } from "zod";
 
-export const ContentChannel = z.enum(["blog", "x_thread", "linkedin", "email"]);
+export const ContentChannel = z.enum(["blog", "x_thread", "linkedin"]);
 export type ContentChannel = z.infer<typeof ContentChannel>;
 
 const BlogMetadataSchema = z.object({
@@ -23,11 +23,6 @@ const XThreadMetadataSchema = z.object({
 
 const LinkedInMetadataSchema = z.object({
   hashtags: z.array(z.string().min(1)),
-});
-
-const EmailMetadataSchema = z.object({
-  subject: z.string().min(1),
-  preheader: z.string().min(1),
 });
 
 export const ContentVariantSchema = z
@@ -60,15 +55,12 @@ export const ContentVariantSchema = z
       case "linkedin":
         metaResult = LinkedInMetadataSchema.safeParse(variant.metadata);
         break;
-      case "email":
-        metaResult = EmailMetadataSchema.safeParse(variant.metadata);
-        break;
     }
     if (!metaResult.success) {
       for (const issue of metaResult.error.issues) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `metadata invalid for ${variant.channel}: ${issue.message}`,
+          message: `metadata invalid for ${variant.channel}: ${issue.message}`, // blog/x_thread/linkedin only
           path: ["metadata", ...issue.path],
         });
       }
@@ -79,10 +71,10 @@ export type ContentVariant = z.infer<typeof ContentVariantSchema>;
 export const ContentExpansionOutputSchema = z
   .object({
     parent_counter_draft_id: z.string().uuid(),
-    variants: z.array(ContentVariantSchema).length(4),
+    variants: z.array(ContentVariantSchema).length(3),
   })
   .superRefine((output, ctx) => {
-    // Hackathon invariant: each of 4 channels must appear exactly once.
+    // Hackathon invariant: each of 3 channels must appear exactly once.
     const seen = new Set<string>();
     for (const [i, v] of output.variants.entries()) {
       if (seen.has(v.channel)) {
@@ -98,7 +90,6 @@ export const ContentExpansionOutputSchema = z
       "blog",
       "x_thread",
       "linkedin",
-      "email",
     ];
     for (const ch of required) {
       if (!seen.has(ch)) {

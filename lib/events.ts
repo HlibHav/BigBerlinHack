@@ -31,7 +31,7 @@ export const NarrativeSimulateRequest = z.object({
 });
 export type NarrativeSimulateRequest = z.infer<typeof NarrativeSimulateRequest>;
 
-// ACTIVE — W7 multi-channel content expansion (counter-draft → blog/x/linkedin/email).
+// ACTIVE — W7 multi-channel content expansion (counter-draft → blog/x/linkedin).
 export const ContentExpandRequest = z.object({
   organization_id: z.string().uuid(),
   parent_counter_draft_id: z.string().uuid(),

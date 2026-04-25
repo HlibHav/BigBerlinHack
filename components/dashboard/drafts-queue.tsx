@@ -20,7 +20,7 @@ type Draft = {
 type ContentVariant = {
   id: string;
   parent_counter_draft_id: string;
-  channel: "blog" | "x_thread" | "linkedin" | "email";
+  channel: "blog" | "x_thread" | "linkedin";
   title: string | null;
   body: string;
   metadata: unknown;
@@ -83,8 +83,19 @@ export function DraftsQueue({
   const [showAllPending, setShowAllPending] = useState(false);
   const [showDecided, setShowDecided] = useState(false);
 
-  const pending = drafts.filter((d) => d.status === "draft");
-  const decided = drafts.filter((d) => d.status !== "draft");
+  // "Pending" includes drafts in active workflow:
+  // - status='draft' (waiting for review)
+  // - status='approved' but no channel variants yet (W7 expand in progress)
+  // → keeps card on top while expanding, не stuck в decided list де user втратить.
+  const isExpanding = (id: string) =>
+    (variantsByDraft.get(id) ?? []).length === 0;
+
+  const pending = drafts.filter(
+    (d) => d.status === "draft" || (d.status === "approved" && isExpanding(d.id)),
+  );
+  const decided = drafts.filter(
+    (d) => d.status === "rejected" || (d.status === "approved" && !isExpanding(d.id)) || d.status === "published",
+  );
   const visiblePending = showAllPending ? pending : pending.slice(0, PENDING_DEFAULT);
   const hiddenPending = pending.length - visiblePending.length;
 

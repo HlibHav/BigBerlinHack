@@ -4,7 +4,6 @@ import { AuditPanel } from "@/components/dashboard/audit-panel";
 import { CompetitorsPanel } from "@/components/dashboard/competitors-panel";
 import { SignalsFeed } from "@/components/dashboard/signals-feed";
 import { DraftsQueue } from "@/components/dashboard/drafts-queue";
-import { SimulatorOutputs } from "@/components/dashboard/simulator-outputs";
 import { MorningBriefPanel } from "@/components/dashboard/morning-brief-panel";
 import { CostPanel } from "@/components/dashboard/cost-panel";
 import { PipelineStatus } from "@/components/dashboard/pipeline-status";
@@ -152,8 +151,12 @@ export default async function DemoPage({
     arr.push(v);
     narrativeVariantsByDraft.set(v.seed_counter_draft_id, arr);
   }
-  // Ad-hoc simulator runs (без draft seed) — для окремої секції SimulatorOutputs.
-  const adHocVariants = allNarrativeVariants.filter((v) => !v.seed_counter_draft_id);
+  // Filter out legacy email content variants — channel deprecated 2026-04-25.
+  // Existing DB rows zaостаються (no migration), просто не render.
+  const liveContentVariants = (contentVariants ?? []).filter(
+    (v): v is typeof v & { channel: "blog" | "x_thread" | "linkedin" } =>
+      v.channel === "blog" || v.channel === "x_thread" || v.channel === "linkedin",
+  );
 
   // Latest run per function — для PipelineStatus + AuditPanel
   const allRuns = recentRuns ?? [];
@@ -211,19 +214,14 @@ export default async function DemoPage({
             />
           ),
           drafts: (
-            <>
-              <DraftsQueue
-                drafts={drafts ?? []}
-                contentVariants={contentVariants ?? []}
-                signalsById={signalsById}
-                narrativeVariantsByDraft={narrativeVariantsByDraft}
-                organizationId={org.id}
-                brandSlug={org.slug}
-              />
-              {adHocVariants.length > 0 ? (
-                <SimulatorOutputs variants={adHocVariants} />
-              ) : null}
-            </>
+            <DraftsQueue
+              drafts={drafts ?? []}
+              contentVariants={liveContentVariants}
+              signalsById={signalsById}
+              narrativeVariantsByDraft={narrativeVariantsByDraft}
+              organizationId={org.id}
+              brandSlug={org.slug}
+            />
           ),
           operations: (
             <>

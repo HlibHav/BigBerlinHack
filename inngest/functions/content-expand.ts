@@ -19,10 +19,11 @@ import { createServiceClient } from "@/lib/supabase/server";
  * W7 — Multi-channel content expansion.
  *
  * Trigger: `content.expand-request` (parent counter-draft uuid). Step graph
- * (features/content-expansion.md §4): load draft → expand to blog/x/linkedin/email
- * via per-channel LLM calls → batch persist 4 rows у `content_variants` →
+ * (features/content-expansion.md §4): load draft → expand to blog/x/linkedin
+ * via per-channel LLM calls → batch persist 3 rows у `content_variants` →
  * persist run row з ContentExpandRunStats. Aggregated output validated через
- * `ContentExpansionOutputSchema` (.length(4) + unique channels).
+ * `ContentExpansionOutputSchema` (.length(3) + unique channels). Email channel
+ * deprecated 2026-04-25 — поза demo scope.
  */
 
 type CounterDraftRow = {
@@ -119,11 +120,6 @@ export const contentExpand = inngest.createFunction(
       body: z.string().min(50).max(1500),
       hashtags: z.array(z.string().min(1)).min(2).max(8),
     });
-    const EmailLLMSchema = z.object({
-      body: z.string().min(50),
-      subject: z.string().min(1).max(80),
-      preheader: z.string().min(1).max(120),
-    });
 
     // 2. Blog (Anthropic, longer-form) ----------------------------------------
     const blogVariant = (await step.run("expand-blog", async () => {
@@ -212,47 +208,19 @@ export const contentExpand = inngest.createFunction(
       });
     })) as ContentVariant;
 
-    // 5. Email (gpt-4o-mini) -------------------------------------------------
-    const emailVariant = (await step.run("expand-email", async () => {
-      const prompt = [
-        basePrompt(counterDraft),
-        ``,
-        `TASK: Format as outbound email.`,
-        `Output: body ~300 words, subject ≤80 chars, preheader ≤120 chars.`,
-      ].join("\n");
-      const { object } = await generateObjectOpenAI({
-        schema: EmailLLMSchema,
-        prompt,
-        model: "gpt-4o-mini",
-        organization_id,
-        operation: "expand-email",
-        schemaName: "EmailVariant",
-        maxTokens: 900,
-        temperature: 0.5,
-      });
-      return ContentVariantSchema.parse({
-        channel: "email",
-        title: null,
-        body: object.body,
-        metadata: { subject: object.subject, preheader: object.preheader },
-        evidence_refs: evidenceRefs,
-      });
-    })) as ContentVariant;
-
     const variants: ContentVariant[] = [
       blogVariant,
       xVariant,
       linkedinVariant,
-      emailVariant,
     ];
 
-    // Aggregate validation — guarantees .length(4) + unique channels.
+    // Aggregate validation — guarantees .length(3) + unique channels.
     ContentExpansionOutputSchema.parse({
       parent_counter_draft_id,
       variants,
     });
 
-    // 6. Persist all 4 variants in single insert ------------------------------
+    // 6. Persist all 3 variants in single insert ------------------------------
     await step.run("persist-variants", async () => {
       const supabase = createServiceClient();
       const rows = variants.map((v) => ({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { formatRelative } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ type Draft = {
 
 type ContentVariant = {
   id: string;
-  channel: "blog" | "x_thread" | "linkedin" | "email";
+  channel: "blog" | "x_thread" | "linkedin";
   title: string | null;
   body: string;
 };
@@ -64,8 +64,6 @@ function channelLabel(c: ContentVariant["channel"]): string {
       return "🐦 X thread";
     case "linkedin":
       return "💼 LinkedIn";
-    case "email":
-      return "📧 Email";
   }
 }
 
@@ -149,12 +147,39 @@ export function DraftCard({
   // Compact mode default: collapsed everything except meta + CTA. Click chevron — full layout.
   const [expanded, setExpanded] = useState(false);
 
+  // Track in-flight async operations щоб показати inline progress.
+  // Baselines зберігають кількість variants на момент кліку — коли real-time
+  // refresh приносить нові rows, count > baseline → progress complete.
+  const [simulating, setSimulating] = useState(false);
+  const [expanding, setExpanding] = useState(false);
+  const simBaseline = useRef(narrativeVariants.length);
+  const expandBaseline = useRef(variants.length);
+
+  useEffect(() => {
+    if (simulating && narrativeVariants.length > simBaseline.current) {
+      setSimulating(false);
+    }
+  }, [narrativeVariants.length, simulating]);
+
+  useEffect(() => {
+    if (expanding && variants.length > expandBaseline.current) {
+      setExpanding(false);
+      // Auto-expand коли variants з'явилися щоб user одразу їх бачив.
+      setExpanded(true);
+    }
+  }, [variants.length, expanding]);
+
   function onReview(status: "approved" | "rejected") {
     setOptimisticStatus(status);
+    if (status === "approved") {
+      expandBaseline.current = variants.length;
+      setExpanding(true);
+      setExpanded(true);
+    }
     const t =
       status === "approved"
         ? toast.loading("Approve → expanding draft", {
-            description: "W7 будує 4 channel variants (blog/X/LinkedIn/email)",
+            description: "W7 будує 3 channel variants (blog/X/LinkedIn)",
           })
         : toast.loading("Rejecting draft");
     startTransition(async () => {
@@ -196,8 +221,11 @@ export function DraftCard({
 
   function onUseVariant(variantId: string, rank: number) {
     setOptimisticStatus("approved");
+    expandBaseline.current = variants.length;
+    setExpanding(true);
+    setExpanded(true);
     const t = toast.loading(`Using variant #${rank} → expanding`, {
-      description: "Draft body заміняється на variant, W7 будує 4 channel versions",
+      description: "Draft body заміняється на variant, W7 будує 3 channel versions",
     });
     startTransition(async () => {
       try {
@@ -227,6 +255,9 @@ export function DraftCard({
   }
 
   function onSimulate() {
+    simBaseline.current = narrativeVariants.length;
+    setSimulating(true);
+    setExpanded(true);
     const t = toast.loading("Simulating alternatives", {
       description: "W5 ranking 3 variants по mention rate × position × sentiment",
     });
@@ -305,6 +336,18 @@ export function DraftCard({
 
       {!expanded ? null : (
         <div id={`draft-body-${draft.id}`}>
+          {(simulating || expanding) ? (
+            <div className="mt-2 flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-primary" />
+              <span className="font-medium">
+                {simulating
+                  ? "Simulating 3 alternatives…"
+                  : "Expanding into 3 channels…"}
+              </span>
+              <span className="text-muted-foreground">~60-90s · UI auto-refresh</span>
+            </div>
+          ) : null}
+
           {signal ? (
             <a
               href={`?tab=signals#signal-${signal.id}`}
@@ -359,7 +402,7 @@ export function DraftCard({
       {!decided && optimisticStatus === "draft" ? (
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Button size="sm" onClick={() => onReview("approved")} disabled={isPending}>
-            ✓ Approve → Expand
+            ✓ Approve → 3 channels
           </Button>
           <Button size="sm" variant="outline" onClick={() => onReview("rejected")} disabled={isPending}>
             ✗ Reject
@@ -408,7 +451,7 @@ export function DraftCard({
                       onClick={() => onUseVariant(v.id, v.rank)}
                       disabled={isPending}
                     >
-                      ✓ Use #{v.rank} & expand into 4 channels
+                      ✓ Use #{v.rank} & expand into 3 channels
                     </Button>
                   ) : null}
                 </li>
@@ -420,7 +463,7 @@ export function DraftCard({
       {variants.length > 0 ? (
         <div className="mt-3 rounded-md border border-border bg-muted/30 p-2 text-xs">
           <p className="mb-2 font-semibold text-muted-foreground">
-            📤 {variants.length} channel variants — клікни, щоб розгорнути
+            📤 {variants.length} channel variants (W7 expand · blog · X · LinkedIn) — клікни, щоб розгорнути
           </p>
           <ul className="space-y-1.5">
             {variants
