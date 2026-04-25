@@ -31,11 +31,22 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 const TAVILY_TERMS_PER_COMPETITOR = 2;
 const TAVILY_RESULTS_PER_QUERY = 3;
+const TAVILY_RESULTS_PER_SOCIAL_QUERY = 2;
+const TAVILY_NEWS_DAYS = 2;
+const MAX_TAVILY_PER_RADAR_RUN = 30;
 const PEEC_DEDUP_LOOKBACK_DAYS = 30;
+
+type SocialChannel = "news" | "x" | "linkedin";
+
+const SOCIAL_DOMAINS: Record<Exclude<SocialChannel, "news">, string[]> = {
+  x: ["twitter.com", "x.com"],
+  linkedin: ["linkedin.com"],
+};
 
 type SignalCandidate = z.infer<typeof SignalSchema> & {
   competitor_id: string | null;
   position: number | null;
+  source_channel?: SocialChannel;
   // Provenance — used downstream by counter-draft fan-out для evidence_refs
   // formatting. Not persisted у DB row directly.
   peec_meta?: {
@@ -129,15 +140,15 @@ export const competitorRadar = inngest.createFunction(
         drafts_generated: 0,
         cost_usd_cents: 0,
       });
-      // ok=true як placeholder — finalize-run overwrites з real value.
-      // На pipeline crash row stays stale-true (rare; Inngest retries cover).
+      // ok=false placeholder (DB NOT NULL). finalize-run UPDATE'ить на true.
+      // На fail row залишається ok=false → коректна failed-run semantics.
       const { data, error } = await supabase
         .from("runs")
         .insert({
           organization_id,
           function_name: "competitor-radar",
           event_payload: event.data as unknown as Record<string, unknown>,
-          ok: true,
+          ok: false,
           started_at: startedAt.toISOString(),
           finished_at: null,
           stats: placeholderStats as unknown as Record<string, unknown>,
@@ -214,7 +225,11 @@ export const competitorRadar = inngest.createFunction(
       return out;
     })) as SignalCandidate[];
 
-    // 4. Tavily supplement ----------------------------------------------------
+    // 4. Tavily supplement (3 parallel queries: news + x + linkedin) ----------
+    //    Per (competitor, term) we fan out to 3 channels — news index (last 2d),
+    //    Twitter/X domain restrict, LinkedIn domain restrict. Each result is
+    //    tagged з source_channel which downstream prompts reference for tone.
+    //    Hard cap MAX_TAVILY_PER_RADAR_RUN protects cost spike on misconfig.
     const tavilyRaw = (await step.run("tavily-supplement", async () => {
       const collected: Array<{
         competitor_id: string;
@@ -222,32 +237,115 @@ export const competitorRadar = inngest.createFunction(
         title: string | null;
         content: string | null;
         query: string;
+        source_channel: SocialChannel;
       }> = [];
+      let callsMade = 0;
+      const overCap = () => callsMade >= MAX_TAVILY_PER_RADAR_RUN;
+
       for (const comp of competitors) {
+        if (overCap()) break;
         const terms = comp.search_terms.slice(0, TAVILY_TERMS_PER_COMPETITOR);
         for (const term of terms) {
+          if (overCap()) break;
           const query = `${comp.display_name} ${term}`;
-          try {
-            const res = await tavilySearch({
+
+          // Build the 3 parallel Tavily calls. Each call counts toward the cap;
+          // we pre-check + decrement remaining slots so a single (comp, term)
+          // either runs all 3 or none — keeps the data shape consistent.
+          if (callsMade + 3 > MAX_TAVILY_PER_RADAR_RUN) {
+            logger.warn?.("[tavily-supplement] cost cap reached, skipping rest", {
+              callsMade,
+              cap: MAX_TAVILY_PER_RADAR_RUN,
+            });
+            break;
+          }
+          callsMade += 3;
+
+          const calls: Array<Promise<{
+            channel: SocialChannel;
+            results: Array<{ url: string; title: string | null; content: string | null }>;
+          }>> = [
+            tavilySearch({
               query,
+              topic: "news",
+              days: TAVILY_NEWS_DAYS,
               max_results: TAVILY_RESULTS_PER_QUERY,
               organization_id,
               run_id: runId,
-            });
-            for (const r of res.results) {
+            })
+              .then((res) => ({
+                channel: "news" as SocialChannel,
+                results: res.results.map((r) => ({
+                  url: r.url,
+                  title: r.title ?? null,
+                  content: r.content ?? null,
+                })),
+              }))
+              .catch((err) => {
+                logger.warn?.("[tavily-supplement] news query failed", {
+                  query,
+                  err: (err as Error).message,
+                });
+                return { channel: "news" as SocialChannel, results: [] };
+              }),
+            tavilySearch({
+              query,
+              include_domains: SOCIAL_DOMAINS.x,
+              max_results: TAVILY_RESULTS_PER_SOCIAL_QUERY,
+              organization_id,
+              run_id: runId,
+            })
+              .then((res) => ({
+                channel: "x" as SocialChannel,
+                results: res.results.map((r) => ({
+                  url: r.url,
+                  title: r.title ?? null,
+                  content: r.content ?? null,
+                })),
+              }))
+              .catch((err) => {
+                logger.warn?.("[tavily-supplement] x query failed", {
+                  query,
+                  err: (err as Error).message,
+                });
+                return { channel: "x" as SocialChannel, results: [] };
+              }),
+            tavilySearch({
+              query,
+              include_domains: SOCIAL_DOMAINS.linkedin,
+              max_results: TAVILY_RESULTS_PER_SOCIAL_QUERY,
+              organization_id,
+              run_id: runId,
+            })
+              .then((res) => ({
+                channel: "linkedin" as SocialChannel,
+                results: res.results.map((r) => ({
+                  url: r.url,
+                  title: r.title ?? null,
+                  content: r.content ?? null,
+                })),
+              }))
+              .catch((err) => {
+                logger.warn?.("[tavily-supplement] linkedin query failed", {
+                  query,
+                  err: (err as Error).message,
+                });
+                return { channel: "linkedin" as SocialChannel, results: [] };
+              }),
+          ];
+
+          const channelResults = await Promise.all(calls);
+          for (const cr of channelResults) {
+            for (const r of cr.results) {
               collected.push({
                 competitor_id: comp.id,
                 url: r.url,
-                title: r.title ?? null,
-                content: r.content ?? null,
+                title: r.title,
+                content: r.content,
                 query,
+                source_channel: cr.channel,
               });
             }
-          } catch (err) {
-            logger.warn?.("[tavily-supplement] query failed", {
-              query,
-              err: (err as Error).message,
-            });
           }
         }
       }
@@ -258,6 +356,7 @@ export const competitorRadar = inngest.createFunction(
       title: string | null;
       content: string | null;
       query: string;
+      source_channel: SocialChannel;
     }>;
 
     // 5. Dedup ----------------------------------------------------------------
@@ -305,23 +404,35 @@ export const competitorRadar = inngest.createFunction(
         title: string | null;
         content: string | null;
         query: string;
+        source_channel: SocialChannel;
       }>;
     };
 
     // 6. Classify Tavily-only signals via Anthropic ---------------------------
+    //    Anthropic prompt now includes source_channel ("news"|"x"|"linkedin") so
+    //    severity/sentiment classification can weigh louder socials signals
+    //    higher when warranted.
     const classifiedTavily = (await step.run("classify-tavily", async () => {
       const out: SignalCandidate[] = [];
       for (const t of dedupResult.dedupedTavily) {
+        const channelHint =
+          t.source_channel === "x"
+            ? "Twitter/X post"
+            : t.source_channel === "linkedin"
+              ? "LinkedIn post"
+              : "News article";
         const prompt = [
-          `Classify this competitor news item for brand-intelligence purposes.`,
+          `Classify this competitor signal for brand-intelligence purposes.`,
           ``,
+          `Source channel: ${t.source_channel} (${channelHint})`,
           `Query: ${t.query}`,
           `URL: ${t.url}`,
           `Title: ${t.title ?? "(no title)"}`,
           `Excerpt: ${(t.content ?? "").slice(0, 1200)}`,
           ``,
-          `Determine source_type (always "competitor" here), severity (low/med/high based on competitive impact),`,
-          `sentiment (positive/neutral/negative), a 20-500 char summary, and ≥20 char reasoning.`,
+          `Determine source_type (always "competitor" here), severity (low/med/high based on competitive impact —`,
+          `socials launches and viral threads typically warrant med/high), sentiment (positive/neutral/negative),`,
+          `a 20-500 char summary, and ≥20 char reasoning. Mention the source channel у summary or reasoning.`,
           `evidence_refs MUST contain at least the source URL.`,
         ].join("\n");
 
@@ -344,6 +455,7 @@ export const competitorRadar = inngest.createFunction(
           source_url: t.url,
           competitor_id: t.competitor_id,
           position: null,
+          source_channel: t.source_channel,
         });
       }
       return out;
@@ -370,6 +482,9 @@ export const competitorRadar = inngest.createFunction(
         reasoning: c.reasoning,
         evidence_refs: c.evidence_refs,
         auto_draft: c.severity === "high",
+        metadata: c.source_channel
+          ? { source_channel: c.source_channel }
+          : {},
       }));
       const { data, error } = await supabase
         .from("signals")
@@ -401,12 +516,17 @@ export const competitorRadar = inngest.createFunction(
               ]
             : [signalId, c.source_url];
 
+        const channelLine = c.source_channel
+          ? `Origin channel: ${c.source_channel} (${c.source_channel === "x" ? "Twitter/X thread" : c.source_channel === "linkedin" ? "LinkedIn post" : "news article"}). Lean toward responding на тому ж channel where natural.`
+          : `Origin: Peec snapshot delta (no specific channel).`;
+
         const prompt = [
           `Draft a counter-narrative reaction to the following high-severity competitor signal.`,
           ``,
           `Signal summary: ${c.summary}`,
           `Reasoning: ${c.reasoning}`,
           `Source URL: ${c.source_url}`,
+          channelLine,
           ``,
           `Output: 50-2000 char body, channel_hint (x|linkedin|blog|multi), tone_pillar from`,
           `the brand voice (e.g. "confident-builder"), reasoning ≥20 chars explaining the angle,`,

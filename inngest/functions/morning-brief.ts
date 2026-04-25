@@ -102,7 +102,8 @@ export async function __morningBriefHandler({
     // -----------------------------------------------------------------------
     // 0a. create-run-row — рано щоб LLM/external calls могли тегувати cost_ledger.
     // -----------------------------------------------------------------------
-    // ok=true як placeholder — finalize-run overwrites з real value.
+    // ok=false placeholder (DB has NOT NULL constraint); finalize-run UPDATE'ить
+    // на true після успіху. На fail row залишається ok=false.
     const runId = (await step.run("create-run-row", async () => {
       const supabase = createServiceClient();
       const { data, error } = await supabase
@@ -111,7 +112,7 @@ export async function __morningBriefHandler({
           organization_id,
           function_name: "morning-brief",
           event_payload: event.data as unknown as Json,
-          ok: true,
+          ok: false,
           started_at: startedAt,
         })
         .select("id")

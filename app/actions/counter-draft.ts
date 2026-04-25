@@ -86,6 +86,7 @@ export async function approveWithVariant(raw: unknown) {
     .from("counter_drafts")
     .update({
       body: variant.body,
+      selected_variant_id: input.variant_id,
       status: "approved",
       reviewed_at: new Date().toISOString(),
     })
@@ -107,6 +108,51 @@ export async function approveWithVariant(raw: unknown) {
   } catch (err) {
     console.error("[approveWithVariant] inngest.send failed", err);
     // Status update succeeded; skip event if Inngest unavailable.
+  }
+
+  revalidatePath(`/demo/${input.brand_slug}`);
+  return { ok: true };
+}
+
+const PublishDraftInput = z.object({
+  draft_id: z.string().uuid(),
+  organization_id: z.string().uuid(),
+  brand_slug: z.string().min(1),
+});
+
+/**
+ * Publish-to-channels: closes the loop. counter_drafts.status='published' +
+ * усі content_variants.status='sent' + sent_at set. Stepper доходить до 5-ї
+ * stage (emerald). Guard: тільки status='approved' може перейти у 'published'
+ * — інакше publish зробить no-op (eq("status", "approved") у where clause).
+ */
+export async function publishDraft(raw: unknown) {
+  const input = PublishDraftInput.parse(raw);
+  const supabase = createServiceClient();
+  const now = new Date().toISOString();
+
+  const { data: cdRow, error: cdErr } = await supabase
+    .from("counter_drafts")
+    .update({ status: "published", published_at: now })
+    .eq("id", input.draft_id)
+    .eq("organization_id", input.organization_id)
+    .eq("status", "approved")
+    .select("id")
+    .maybeSingle();
+  if (cdErr) {
+    return { ok: false, reason: cdErr.message };
+  }
+  if (!cdRow) {
+    return { ok: false, reason: "Draft must be in 'approved' state to publish" };
+  }
+
+  const { error: cvErr } = await supabase
+    .from("content_variants")
+    .update({ status: "sent", sent_at: now })
+    .eq("parent_counter_draft_id", input.draft_id)
+    .eq("organization_id", input.organization_id);
+  if (cvErr) {
+    return { ok: false, reason: `counter_drafts published but content_variants update failed: ${cvErr.message}` };
   }
 
   revalidatePath(`/demo/${input.brand_slug}`);

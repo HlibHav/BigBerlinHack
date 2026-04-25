@@ -149,7 +149,8 @@ export async function __narrativeSimulatorHandler({
     // -----------------------------------------------------------------------
     // 0. create-run-row — рано щоб LLM steps могли тегувати cost_ledger з runId
     // -----------------------------------------------------------------------
-    // ok=true як placeholder — finalize-run overwrites з real value.
+    // ok=false placeholder (DB has NOT NULL constraint); finalize-run UPDATE'ить
+    // на true після успіху. На fail row залишається ok=false → коректна failed semantics.
     const runRow = await step.run("create-run-row", async () => {
       const supabase = createServiceClient();
       const { data, error } = await supabase
@@ -158,7 +159,7 @@ export async function __narrativeSimulatorHandler({
           organization_id,
           function_name: "narrative-simulator",
           event_payload: event.data as unknown as Json,
-          ok: true,
+          ok: false,
           started_at: startedAt,
         })
         .select("id")

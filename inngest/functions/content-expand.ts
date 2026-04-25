@@ -79,14 +79,14 @@ export const contentExpand = inngest.createFunction(
         variants_generated: 0,
         cost_usd_cents: 0,
       });
-      // ok=true як placeholder — finalize-run overwrites з real value.
+      // ok=false placeholder (DB NOT NULL). finalize-run UPDATE'ить на true.
       const { data, error } = await supabase
         .from("runs")
         .insert({
           organization_id,
           function_name: "content-expand",
           event_payload: event.data as unknown as Record<string, unknown>,
-          ok: true,
+          ok: false,
           started_at: startedAt.toISOString(),
           finished_at: null,
           stats: placeholderStats as unknown as Record<string, unknown>,

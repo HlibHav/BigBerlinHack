@@ -195,6 +195,7 @@ export type Database = {
           organization_id: string
           parent_counter_draft_id: string
           run_id: string | null
+          sent_at: string | null
           status: Database["public"]["Enums"]["content_status"]
           title: string | null
           updated_at: string | null
@@ -209,6 +210,7 @@ export type Database = {
           organization_id: string
           parent_counter_draft_id: string
           run_id?: string | null
+          sent_at?: string | null
           status?: Database["public"]["Enums"]["content_status"]
           title?: string | null
           updated_at?: string | null
@@ -223,6 +225,7 @@ export type Database = {
           organization_id?: string
           parent_counter_draft_id?: string
           run_id?: string | null
+          sent_at?: string | null
           status?: Database["public"]["Enums"]["content_status"]
           title?: string | null
           updated_at?: string | null
@@ -300,9 +303,11 @@ export type Database = {
           evidence_refs: string[]
           id: string
           organization_id: string
+          published_at: string | null
           reasoning: string
           reviewed_at: string | null
           reviewed_by: string | null
+          selected_variant_id: string | null
           signal_id: string | null
           status: Database["public"]["Enums"]["counter_draft_status"]
           tone_pillar: string
@@ -315,9 +320,11 @@ export type Database = {
           evidence_refs: string[]
           id?: string
           organization_id: string
+          published_at?: string | null
           reasoning: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          selected_variant_id?: string | null
           signal_id?: string | null
           status?: Database["public"]["Enums"]["counter_draft_status"]
           tone_pillar: string
@@ -330,9 +337,11 @@ export type Database = {
           evidence_refs?: string[]
           id?: string
           organization_id?: string
+          published_at?: string | null
           reasoning?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          selected_variant_id?: string | null
           signal_id?: string | null
           status?: Database["public"]["Enums"]["counter_draft_status"]
           tone_pillar?: string
@@ -370,6 +379,7 @@ export type Database = {
           evidence_refs: string[]
           id: string
           mention_rate: number
+          metadata: Json
           organization_id: string
           predicted_sentiment: Database["public"]["Enums"]["sentiment_label"]
           rank: number
@@ -386,6 +396,7 @@ export type Database = {
           evidence_refs: string[]
           id?: string
           mention_rate: number
+          metadata?: Json
           organization_id: string
           predicted_sentiment: Database["public"]["Enums"]["sentiment_label"]
           rank: number
@@ -402,6 +413,7 @@ export type Database = {
           evidence_refs?: string[]
           id?: string
           mention_rate?: number
+          metadata?: Json
           organization_id?: string
           predicted_sentiment?: Database["public"]["Enums"]["sentiment_label"]
           rank?: number
@@ -574,6 +586,7 @@ export type Database = {
           embedding: string | null
           evidence_refs: string[]
           id: string
+          metadata: Json
           organization_id: string
           position: number | null
           reasoning: string
@@ -591,6 +604,7 @@ export type Database = {
           embedding?: string | null
           evidence_refs: string[]
           id?: string
+          metadata?: Json
           organization_id: string
           position?: number | null
           reasoning: string
@@ -608,6 +622,7 @@ export type Database = {
           embedding?: string | null
           evidence_refs?: string[]
           id?: string
+          metadata?: Json
           organization_id?: string
           position?: number | null
           reasoning?: string
