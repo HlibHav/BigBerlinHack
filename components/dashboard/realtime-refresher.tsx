@@ -16,31 +16,37 @@ const tableLabel: Record<(typeof TABLES)[number], string> = {
   brief_deliveries: "morning brief",
 };
 
+const POLL_INTERVAL_MS = 20_000;
+const MIN_REFRESH_GAP_MS = 1500;
+
 /**
- * Subscribes to INSERT events на ключових таблицях для цього organization_id.
- * На кожен новий row викликає router.refresh() що пере-fetch'ить server component
- * data — UI оновлюється без manual reload. Anonymous Supabase client; покладається
- * на public-demo RLS policy (organizations.is_public_demo=true).
+ * Hybrid auto-refresh:
+ * - Realtime subscription: INSERT на ключових таблицях для цього org → debounced refresh.
+ * - Polling fallback: кожні 20s викликає refresh навіть якщо Realtime не enabled
+ *   на Supabase tables (потребує `alter publication supabase_realtime add table`).
+ *   Гарантує auto-refresh для simulator/expand outputs незалежно від Supabase config.
  *
- * Debounce: тригер refresh не частіше ніж раз на 1.5s щоб не спамити при batch'ах.
+ * Anonymous Supabase client; полагається на public-demo RLS policy.
  */
 export function RealtimeRefresher({ organizationId }: { organizationId: string }) {
   const router = useRouter();
   const lastRefresh = useRef(0);
-  const pending = useRef<NodeJS.Timeout | null>(null);
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase.channel(`bbh:org:${organizationId}`);
 
-    function scheduleRefresh(label: string) {
+    function doRefresh(label?: string) {
       const now = Date.now();
       const since = now - lastRefresh.current;
-      const delay = since < 1500 ? 1500 - since : 0;
+      const delay = since < MIN_REFRESH_GAP_MS ? MIN_REFRESH_GAP_MS - since : 0;
       if (pending.current) clearTimeout(pending.current);
       pending.current = setTimeout(() => {
         lastRefresh.current = Date.now();
-        toast.info(`New ${label}`, { description: "UI оновлюється…", duration: 2500 });
+        if (label) {
+          toast.info(`New ${label}`, { description: "UI оновлюється…", duration: 2500 });
+        }
         router.refresh();
       }, delay);
     }
@@ -54,14 +60,19 @@ export function RealtimeRefresher({ organizationId }: { organizationId: string }
           table,
           filter: `organization_id=eq.${organizationId}`,
         },
-        () => scheduleRefresh(tableLabel[table]),
+        () => doRefresh(tableLabel[table]),
       );
     }
 
     channel.subscribe();
 
+    // Polling fallback — silent refresh кожні 20s. router.refresh() переmounts
+    // тільки змінені server components, не повний reload.
+    const pollId = setInterval(() => doRefresh(), POLL_INTERVAL_MS);
+
     return () => {
       if (pending.current) clearTimeout(pending.current);
+      clearInterval(pollId);
       void supabase.removeChannel(channel);
     };
   }, [organizationId, router]);

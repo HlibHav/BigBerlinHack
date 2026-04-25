@@ -56,6 +56,19 @@ const sentimentEmoji: Record<NarrativeVariant["predicted_sentiment"], string> = 
   negative: "🙁",
 };
 
+function channelLabel(c: ContentVariant["channel"]): string {
+  switch (c) {
+    case "blog":
+      return "📝 Blog";
+    case "x_thread":
+      return "🐦 X thread";
+    case "linkedin":
+      return "💼 LinkedIn";
+    case "email":
+      return "📧 Email";
+  }
+}
+
 const statusColor: Record<string, string> = {
   draft: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
   approved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
@@ -133,7 +146,6 @@ export function DraftCard({
 }) {
   const [isPending, startTransition] = useTransition();
   const [optimisticStatus, setOptimisticStatus] = useState(draft.status);
-  const [showVariants, setShowVariants] = useState(false);
   // Compact mode default: collapsed everything except meta + CTA. Click chevron — full layout.
   const [expanded, setExpanded] = useState(false);
 
@@ -363,25 +375,26 @@ export function DraftCard({
       ) : null}
 
       {variants.length > 0 ? (
-        <div className="mt-3">
-          <button
-            onClick={() => setShowVariants((v) => !v)}
-            className="text-xs text-muted-foreground hover:underline"
-          >
-            {showVariants ? "Hide" : "Show"} {variants.length} channel variants
-          </button>
-          {showVariants ? (
-            <ul className="mt-2 space-y-2">
-              {variants.map((v) => (
-                <li key={v.id} className="rounded bg-muted/40 p-2 text-xs">
-                  <p className="font-semibold uppercase">{v.channel}</p>
-                  {v.title ? <p className="mt-0.5 font-medium">{v.title}</p> : null}
-                  <p className="mt-0.5 whitespace-pre-wrap">{v.body.slice(0, 280)}{v.body.length > 280 ? "…" : ""}</p>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
+        <details
+          className="mt-3 rounded-md border border-border bg-muted/30 p-2 text-xs"
+          open
+        >
+          <summary className="cursor-pointer font-semibold text-muted-foreground hover:text-foreground">
+            📤 {variants.length} channel variants (W7 expand) — blog · X · LinkedIn · email
+          </summary>
+          <ul className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {variants.map((v) => (
+              <li key={v.id} className="rounded bg-background p-2">
+                <p className="font-semibold uppercase">{channelLabel(v.channel)}</p>
+                {v.title ? <p className="mt-0.5 font-medium">{v.title}</p> : null}
+                <p className="mt-0.5 whitespace-pre-wrap">
+                  {v.body.slice(0, 280)}
+                  {v.body.length > 280 ? "…" : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </details>
       ) : null}
         </div>
       )}

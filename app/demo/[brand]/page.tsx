@@ -5,7 +5,6 @@ import { CompetitorsPanel } from "@/components/dashboard/competitors-panel";
 import { SignalsFeed } from "@/components/dashboard/signals-feed";
 import { DraftsQueue } from "@/components/dashboard/drafts-queue";
 import { SimulatorOutputs } from "@/components/dashboard/simulator-outputs";
-import { MultiChannelPanel } from "@/components/dashboard/multi-channel-panel";
 import { MorningBriefPanel } from "@/components/dashboard/morning-brief-panel";
 import { CostPanel } from "@/components/dashboard/cost-panel";
 import { PipelineStatus } from "@/components/dashboard/pipeline-status";
@@ -221,11 +220,9 @@ export default async function DemoPage({
                 organizationId={org.id}
                 brandSlug={org.slug}
               />
-              <MultiChannelPanel
-                contentVariants={contentVariants ?? []}
-                drafts={drafts ?? []}
-              />
-              <SimulatorOutputs variants={adHocVariants} />
+              {adHocVariants.length > 0 ? (
+                <SimulatorOutputs variants={adHocVariants} />
+              ) : null}
             </>
           ),
           operations: (
