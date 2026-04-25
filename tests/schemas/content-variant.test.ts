@@ -47,19 +47,6 @@ function linkedinVariant() {
   };
 }
 
-function emailVariant() {
-  return {
-    channel: "email" as const,
-    title: null,
-    body: "Hi {{first_name}},\n\nQuick note on why our team picked Attio over HubSpot last month — flexibility was the deciding factor.",
-    metadata: {
-      subject: "Why we switched to Attio",
-      preheader: "Flexibility was the deciding factor.",
-    },
-    evidence_refs: ["draft-id"],
-  };
-}
-
 describe("ContentVariantSchema", () => {
   it("parses valid blog variant з proper metadata", () => {
     const parsed = ContentVariantSchema.parse(blogVariant());
@@ -96,18 +83,18 @@ describe("ContentVariantSchema", () => {
 });
 
 describe("ContentExpansionOutputSchema", () => {
-  it("parses output з all 4 channels", () => {
+  it("parses output з all 3 channels", () => {
     const parsed = ContentExpansionOutputSchema.parse({
       parent_counter_draft_id: PARENT_ID,
-      variants: [blogVariant(), xThreadVariant(), linkedinVariant(), emailVariant()],
+      variants: [blogVariant(), xThreadVariant(), linkedinVariant()],
     });
-    expect(parsed.variants).toHaveLength(4);
+    expect(parsed.variants).toHaveLength(3);
   });
 
-  it("rejects output з only 3 variants", () => {
+  it("rejects output з only 2 variants", () => {
     const result = ContentExpansionOutputSchema.safeParse({
       parent_counter_draft_id: PARENT_ID,
-      variants: [blogVariant(), xThreadVariant(), linkedinVariant()],
+      variants: [blogVariant(), xThreadVariant()],
     });
     expect(result.success).toBe(false);
   });
@@ -115,7 +102,7 @@ describe("ContentExpansionOutputSchema", () => {
   it("rejects output з duplicate channel", () => {
     const result = ContentExpansionOutputSchema.safeParse({
       parent_counter_draft_id: PARENT_ID,
-      variants: [blogVariant(), blogVariant(), linkedinVariant(), emailVariant()],
+      variants: [blogVariant(), blogVariant(), linkedinVariant()],
     });
     expect(result.success).toBe(false);
   });
