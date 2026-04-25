@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { formatRelative } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { reviewCounterDraft } from "@/app/actions/counter-draft";
@@ -48,21 +49,40 @@ export function DraftCard({
   const [isPending, startTransition] = useTransition();
   const [optimisticStatus, setOptimisticStatus] = useState(draft.status);
   const [showVariants, setShowVariants] = useState(false);
-  const [simStatus, setSimStatus] = useState<"idle" | "running" | "ok" | "error">("idle");
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
 
   function onReview(status: "approved" | "rejected") {
     setOptimisticStatus(status);
+    const t =
+      status === "approved"
+        ? toast.loading("Approve → expanding draft", {
+            description: "W7 будує 4 channel variants (blog/X/LinkedIn/email)",
+          })
+        : toast.loading("Rejecting draft");
     startTransition(async () => {
       try {
-        await reviewCounterDraft({
+        const result = await reviewCounterDraft({
           draft_id: draft.id,
           organization_id: organizationId,
           brand_slug: brandSlug,
           status,
         });
+        if (result.ok) {
+          toast.success(status === "approved" ? "Draft approved → expansion triggered" : "Draft rejected", {
+            id: t,
+            description: status === "approved" ? "Variants з'являться у ~90s" : undefined,
+          });
+        } else {
+          toast.error("Review fail", {
+            id: t,
+            description: result.reason ?? "DB update failed",
+          });
+          setOptimisticStatus(draft.status);
+        }
       } catch (err) {
-        console.error("reviewCounterDraft failed", err);
+        toast.error("Review fail", {
+          id: t,
+          description: err instanceof Error ? err.message : "unknown",
+        });
         setOptimisticStatus(draft.status);
       }
     });
@@ -71,15 +91,14 @@ export function DraftCard({
   function onCopy() {
     navigator.clipboard
       .writeText(draft.body)
-      .then(() => {
-        setCopyStatus("copied");
-        setTimeout(() => setCopyStatus("idle"), 2000);
-      })
-      .catch(console.error);
+      .then(() => toast.success("Скопійовано у буфер"))
+      .catch((err) => toast.error("Не вдалося скопіювати", { description: String(err) }));
   }
 
   function onSimulate() {
-    setSimStatus("running");
+    const t = toast.loading("Simulating alternatives", {
+      description: "W5 ranking 3 variants по mention rate × position × sentiment",
+    });
     startTransition(async () => {
       try {
         const result = await triggerSimulator({
@@ -90,24 +109,22 @@ export function DraftCard({
           requested_by: null,
           num_variants: 3,
         });
-        setSimStatus(result.ok ? "ok" : "error");
-        setTimeout(() => setSimStatus("idle"), 8000);
+        if (result.ok) {
+          toast.success("Simulator triggered", {
+            id: t,
+            description: "Variants з'являться у Simulator outputs за ~60s",
+          });
+        } else {
+          toast.error("Simulator fail", { id: t, description: result.reason ?? "event API error" });
+        }
       } catch (err) {
-        console.error("triggerSimulator failed", err);
-        setSimStatus("error");
-        setTimeout(() => setSimStatus("idle"), 4000);
+        toast.error("Simulator fail", {
+          id: t,
+          description: err instanceof Error ? err.message : "unknown",
+        });
       }
     });
   }
-
-  const simLabel =
-    simStatus === "running"
-      ? "Simulating…"
-      : simStatus === "ok"
-      ? "✓ Triggered — refresh у ~60s"
-      : simStatus === "error"
-      ? "✗ Failed"
-      : "↻ Simulate alternatives";
 
   return (
     <li className={`rounded-md border border-border bg-background p-3 ${decided ? "opacity-70" : ""}`}>
@@ -135,15 +152,10 @@ export function DraftCard({
             ✗ Reject
           </Button>
           <Button size="sm" variant="ghost" onClick={onCopy}>
-            {copyStatus === "copied" ? "✓ Copied" : "⧉ Copy"}
+            ⧉ Copy
           </Button>
-          <Button
-            size="sm"
-            variant={simStatus === "error" ? "destructive" : "ghost"}
-            onClick={onSimulate}
-            disabled={isPending || simStatus === "running"}
-          >
-            {simLabel}
+          <Button size="sm" variant="ghost" onClick={onSimulate} disabled={isPending}>
+            ↻ Simulate alternatives
           </Button>
         </div>
       ) : null}

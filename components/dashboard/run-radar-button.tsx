@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { triggerRadar } from "@/app/actions/radar";
 
@@ -12,44 +13,40 @@ export function RunRadarButton({
   brandSlug: string;
 }) {
   const [isPending, startTransition] = useTransition();
-  const [status, setStatus] = useState<"idle" | "running" | "ok" | "error">("idle");
 
   function onClick() {
-    setStatus("running");
+    const t = toast.loading("Radar запущено", {
+      description: "W9 шукає competitor moves у Peec snapshot + Tavily",
+    });
     startTransition(async () => {
       try {
         const result = await triggerRadar({
           organization_id: organizationId,
           brand_slug: brandSlug,
         });
-        setStatus(result.ok ? "ok" : "error");
-        // Server action revalidates path; user sees fresh data within 90s.
-        setTimeout(() => setStatus("idle"), 8000);
+        if (result.ok) {
+          toast.success("Radar event надіслано", {
+            id: t,
+            description: "Pipeline крутиться у Inngest cloud, оновлення за ~60-90s",
+          });
+        } else {
+          toast.error("Не вдалося тригернути radar", {
+            id: t,
+            description: result.reason ?? "Inngest event API повернув помилку",
+          });
+        }
       } catch (err) {
-        console.error("triggerRadar failed", err);
-        setStatus("error");
-        setTimeout(() => setStatus("idle"), 4000);
+        toast.error("Radar fail", {
+          id: t,
+          description: err instanceof Error ? err.message : "unknown",
+        });
       }
     });
   }
 
-  const label =
-    status === "running"
-      ? "Running…"
-      : status === "ok"
-      ? "✓ Triggered — refresh у ~90s"
-      : status === "error"
-      ? "✗ Failed"
-      : "Run radar now";
-
   return (
-    <Button
-      size="sm"
-      variant={status === "error" ? "destructive" : "default"}
-      onClick={onClick}
-      disabled={isPending || status === "running"}
-    >
-      {label}
+    <Button size="sm" onClick={onClick} disabled={isPending}>
+      {isPending ? "Triggering…" : "Run radar now"}
     </Button>
   );
 }

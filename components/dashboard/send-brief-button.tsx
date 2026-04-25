@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { sendBriefNow } from "@/app/actions/morning-brief";
 
@@ -12,43 +13,40 @@ export function SendBriefButton({
   brandSlug: string;
 }) {
   const [isPending, startTransition] = useTransition();
-  const [status, setStatus] = useState<"idle" | "running" | "ok" | "error">("idle");
 
   function onClick() {
-    setStatus("running");
+    const t = toast.loading("Morning brief шлеться…", {
+      description: "W6′ збирає 24h signals + Peec pulse → Slack",
+    });
     startTransition(async () => {
       try {
         const result = await sendBriefNow({
           organization_id: organizationId,
           brand_slug: brandSlug,
         });
-        setStatus(result.ok ? "ok" : "error");
-        setTimeout(() => setStatus("idle"), 8000);
+        if (result.ok) {
+          toast.success("Brief event надіслано", {
+            id: t,
+            description: "Перевір Slack #bbh-demo за ~30s",
+          });
+        } else {
+          toast.error("Не вдалося надіслати brief", {
+            id: t,
+            description: result.reason ?? "Inngest event API повернув помилку",
+          });
+        }
       } catch (err) {
-        console.error("sendBriefNow failed", err);
-        setStatus("error");
-        setTimeout(() => setStatus("idle"), 4000);
+        toast.error("Brief fail", {
+          id: t,
+          description: err instanceof Error ? err.message : "unknown",
+        });
       }
     });
   }
 
-  const label =
-    status === "running"
-      ? "Sending…"
-      : status === "ok"
-      ? "✓ Triggered — check Slack"
-      : status === "error"
-      ? "✗ Failed"
-      : "Send brief now";
-
   return (
-    <Button
-      size="sm"
-      variant={status === "error" ? "destructive" : "default"}
-      onClick={onClick}
-      disabled={isPending || status === "running"}
-    >
-      {label}
+    <Button size="sm" onClick={onClick} disabled={isPending}>
+      {isPending ? "Sending…" : "Send brief now"}
     </Button>
   );
 }

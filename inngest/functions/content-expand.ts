@@ -1,5 +1,7 @@
 import "server-only";
 
+import { z } from "zod";
+
 import { inngest } from "@/inngest/client";
 import type { Json } from "@/lib/supabase/types";
 import {
@@ -99,18 +101,41 @@ export const contentExpand = inngest.createFunction(
       ? counterDraft.evidence_refs
       : [counterDraft.id];
 
+    // Per-channel narrow schemas — submitted to LLM structured output. Тримаємо
+    // metadata fields як top-level required щоб LLM (особливо OpenAI) реально
+    // повертав їх. Потім reshape'имо у канонічний ContentVariantSchema у parent
+    // scope. lib/schemas/content-variant.ts CRITICAL zone — не змінюємо.
+    const BlogLLMSchema = z.object({
+      title: z.string().min(5).max(120),
+      body: z.string().min(50),
+      meta_description: z.string().min(1).max(160),
+      slug_suggestion: z.string().min(1),
+    });
+    const XThreadLLMSchema = z.object({
+      body: z.string().min(50),
+      tweets: z.array(z.string().min(1).max(280)).min(3).max(8),
+    });
+    const LinkedInLLMSchema = z.object({
+      body: z.string().min(50).max(1500),
+      hashtags: z.array(z.string().min(1)).min(2).max(8),
+    });
+    const EmailLLMSchema = z.object({
+      body: z.string().min(50),
+      subject: z.string().min(1).max(80),
+      preheader: z.string().min(1).max(120),
+    });
+
     // 2. Blog (Anthropic, longer-form) ----------------------------------------
     const blogVariant = (await step.run("expand-blog", async () => {
       const prompt = [
         basePrompt(counterDraft),
         ``,
         `TASK: Expand into a ~800 word blog post.`,
-        `Schema: channel="blog", title (5-120 chars, headline), body ≥800 words, metadata`,
-        `must include meta_description (≤160 chars) and slug_suggestion (kebab-case).`,
-        `evidence_refs MUST equal: ${JSON.stringify(evidenceRefs)}.`,
+        `Output: title (5-120 chars headline), body ≥800 words, meta_description ≤160 chars,`,
+        `slug_suggestion in kebab-case.`,
       ].join("\n");
       const { object } = await generateObjectAnthropic({
-        schema: ContentVariantSchema,
+        schema: BlogLLMSchema,
         prompt,
         model: "claude-sonnet-4-5",
         organization_id,
@@ -120,8 +145,13 @@ export const contentExpand = inngest.createFunction(
         temperature: 0.5,
       });
       return ContentVariantSchema.parse({
-        ...object,
         channel: "blog",
+        title: object.title,
+        body: object.body,
+        metadata: {
+          meta_description: object.meta_description,
+          slug_suggestion: object.slug_suggestion,
+        },
         evidence_refs: evidenceRefs,
       });
     })) as ContentVariant;
@@ -131,13 +161,12 @@ export const contentExpand = inngest.createFunction(
       const prompt = [
         basePrompt(counterDraft),
         ``,
-        `TASK: Adapt as a 5-tweet X thread.`,
-        `Schema: channel="x_thread", title=null, body = the full thread joined with double newlines,`,
-        `metadata.tweets MUST be an array of exactly 5 strings, each ≤280 chars.`,
-        `evidence_refs MUST equal: ${JSON.stringify(evidenceRefs)}.`,
+        `TASK: Adapt as a 3-7 tweet X thread.`,
+        `Output: body = full thread joined with double newlines, tweets = array of 3-7 strings`,
+        `each ≤280 chars що складають тред у логічному порядку.`,
       ].join("\n");
       const { object } = await generateObjectOpenAI({
-        schema: ContentVariantSchema,
+        schema: XThreadLLMSchema,
         prompt,
         model: "gpt-4o-mini",
         organization_id,
@@ -147,9 +176,10 @@ export const contentExpand = inngest.createFunction(
         temperature: 0.6,
       });
       return ContentVariantSchema.parse({
-        ...object,
         channel: "x_thread",
         title: null,
+        body: object.body,
+        metadata: { tweets: object.tweets },
         evidence_refs: evidenceRefs,
       });
     })) as ContentVariant;
@@ -160,12 +190,11 @@ export const contentExpand = inngest.createFunction(
         basePrompt(counterDraft),
         ``,
         `TASK: Write a ~200-word LinkedIn post.`,
-        `Schema: channel="linkedin", title=null, body 50-1500 chars (~200 words),`,
-        `metadata.hashtags = array of 3-5 brand-relevant hashtags (no leading #).`,
-        `evidence_refs MUST equal: ${JSON.stringify(evidenceRefs)}.`,
+        `Output: body 50-1500 chars (~200 words), hashtags = 2-8 brand-relevant tags`,
+        `(no leading #).`,
       ].join("\n");
       const { object } = await generateObjectOpenAI({
-        schema: ContentVariantSchema,
+        schema: LinkedInLLMSchema,
         prompt,
         model: "gpt-4o-mini",
         organization_id,
@@ -175,9 +204,10 @@ export const contentExpand = inngest.createFunction(
         temperature: 0.5,
       });
       return ContentVariantSchema.parse({
-        ...object,
         channel: "linkedin",
         title: null,
+        body: object.body,
+        metadata: { hashtags: object.hashtags },
         evidence_refs: evidenceRefs,
       });
     })) as ContentVariant;
@@ -188,12 +218,10 @@ export const contentExpand = inngest.createFunction(
         basePrompt(counterDraft),
         ``,
         `TASK: Format as outbound email.`,
-        `Schema: channel="email", title=null, body = email body (~300 words), metadata must`,
-        `include subject (≤80 chars) and preheader (≤120 chars).`,
-        `evidence_refs MUST equal: ${JSON.stringify(evidenceRefs)}.`,
+        `Output: body ~300 words, subject ≤80 chars, preheader ≤120 chars.`,
       ].join("\n");
       const { object } = await generateObjectOpenAI({
-        schema: ContentVariantSchema,
+        schema: EmailLLMSchema,
         prompt,
         model: "gpt-4o-mini",
         organization_id,
@@ -203,9 +231,10 @@ export const contentExpand = inngest.createFunction(
         temperature: 0.5,
       });
       return ContentVariantSchema.parse({
-        ...object,
         channel: "email",
         title: null,
+        body: object.body,
+        metadata: { subject: object.subject, preheader: object.preheader },
         evidence_refs: evidenceRefs,
       });
     })) as ContentVariant;
