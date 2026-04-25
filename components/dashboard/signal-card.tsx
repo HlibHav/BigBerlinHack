@@ -31,6 +31,42 @@ const sentimentEmoji: Record<string, string> = {
   negative: "🙁",
 };
 
+export type SignalSourceType = "competitor" | "internal" | "external" | "peec_delta";
+
+export type SourceMeta = {
+  emoji: string;
+  label: string;
+  cls: string;
+  tooltip: string;
+};
+
+export function sourceMeta(sourceType: string): SourceMeta {
+  switch (sourceType) {
+    case "peec_delta":
+      return {
+        emoji: "📊",
+        label: "Peec",
+        cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+        tooltip: "Detected by Peec brand_report delta (visibility / sentiment / position shift)",
+      };
+    case "competitor":
+    case "external":
+      return {
+        emoji: "🔍",
+        label: "Tavily",
+        cls: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300",
+        tooltip: "Found via Tavily live web search of competitor moves",
+      };
+    default:
+      return {
+        emoji: "📁",
+        label: "Internal",
+        cls: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+        tooltip: "Manual entry або seed data",
+      };
+  }
+}
+
 export function SignalCard({
   signal,
   brandName,
@@ -77,9 +113,17 @@ export function SignalCard({
             </span>
           ) : null}
           <span className="text-xs font-medium">{brandName}</span>
-          <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">
-            {signal.source_type === "peec_delta" ? "Peec" : signal.source_type}
-          </span>
+          {(() => {
+            const meta = sourceMeta(signal.source_type);
+            return (
+              <span
+                className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${meta.cls}`}
+                title={meta.tooltip}
+              >
+                {meta.emoji} {meta.label}
+              </span>
+            );
+          })()}
         </div>
         <span className="shrink-0 text-xs text-muted-foreground">
           {formatRelative(signal.created_at)}

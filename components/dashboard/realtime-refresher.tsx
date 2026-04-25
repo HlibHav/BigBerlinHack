@@ -32,6 +32,7 @@ export function RealtimeRefresher({ organizationId }: { organizationId: string }
   const router = useRouter();
   const lastRefresh = useRef(0);
   const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasShownConnect = useRef(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -64,7 +65,25 @@ export function RealtimeRefresher({ organizationId }: { organizationId: string }
       );
     }
 
-    channel.subscribe();
+    channel.subscribe((status, err) => {
+      if (status === "SUBSCRIBED") {
+        // eslint-disable-next-line no-console
+        console.log("[Realtime] connected for org", organizationId);
+        if (!hasShownConnect.current) {
+          toast.success("Live updates active", { duration: 2500 });
+          hasShownConnect.current = true;
+        }
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+        // eslint-disable-next-line no-console
+        console.warn("[Realtime] subscription degraded:", status, err);
+        if (!hasShownConnect.current && status !== "CLOSED") {
+          toast.warning("Live updates unavailable", {
+            duration: 4000,
+            description: "Polling fallback active (refresh кожні 20s)",
+          });
+        }
+      }
+    });
 
     // Polling fallback — silent refresh кожні 20s. router.refresh() переmounts
     // тільки змінені server components, не повний reload.
