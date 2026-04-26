@@ -38,7 +38,7 @@ export type PrelaunchPanelResult = z.infer<typeof PrelaunchPanelResultSchema>;
 
 /**
  * Verdict synthesis schema — what Claude must produce in the synthesize step.
- * verdict + reasoning ≥10 chars (Ukrainian, 2-3 sentences).
+ * verdict + reasoning ≥10 chars (English, 2-3 sentences).
  */
 export const PrelaunchVerdictSynthesisSchema = z.object({
   verdict: PrelaunchVerdictSchema,
@@ -46,7 +46,9 @@ export const PrelaunchVerdictSynthesisSchema = z.object({
     .string()
     .min(10)
     .max(800)
-    .describe("Ukrainian 2-3 sentence rationale referencing baseline + phrase + panel"),
+    .describe(
+      "English 2-3 sentence rationale referencing baseline visibility, phrase availability and panel mention rate. Output MUST be English regardless of any non-English text in the analyst-facing prompt strings.",
+    ),
 });
 export type PrelaunchVerdictSynthesis = z.infer<
   typeof PrelaunchVerdictSynthesisSchema

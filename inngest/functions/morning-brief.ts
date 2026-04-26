@@ -36,6 +36,7 @@ import {
 } from "@/lib/services/peec-snapshot";
 import { formatBriefBlocks, sendSlack } from "@/lib/services/slack";
 import { createServiceClient } from "@/lib/supabase/server";
+import { truncateAtWord } from "@/lib/utils";
 
 const HACKATHON_BRAND_NAME = "Attio";
 const SLACK_RECIPIENT_FALLBACK = "#bbh-demo";
@@ -218,7 +219,7 @@ export async function __morningBriefHandler({
 
       const draftsBlock =
         gathered.drafts.slice(0, 3).map((d, i) =>
-          `${i + 1}. (${d.channel_hint}) ${d.body.slice(0, 200)}`,
+          `${i + 1}. (${d.channel_hint}) ${truncateAtWord(d.body, 350)}`,
         ).join("\n") || "(no pending drafts)";
 
       const pulseBlock = gathered.brand_pulse

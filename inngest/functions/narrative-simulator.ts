@@ -39,6 +39,7 @@ import {
 } from "@/lib/services/peec-snapshot";
 import { tavilySearch } from "@/lib/services/tavily";
 import { createServiceClient } from "@/lib/supabase/server";
+import { truncateAtWord } from "@/lib/utils";
 import { judgeVariants } from "@/lib/services/variant-judge";
 
 // ---------------------------------------------------------------------------
@@ -299,7 +300,7 @@ export async function __narrativeSimulatorHandler({
         .join("\n") || "(none)";
       const activeDraftsBlock = context.active_drafts
         .slice(0, 3)
-        .map((d, i) => `${i + 1}. (${d.channel_hint}) ${d.body.slice(0, 200)}`)
+        .map((d, i) => `${i + 1}. (${d.channel_hint}) ${truncateAtWord(d.body, 350)}`)
         .join("\n") || "(none)";
 
       const angles = sampleAngles(num_variants);
