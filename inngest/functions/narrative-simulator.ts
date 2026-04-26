@@ -3,23 +3,32 @@
 // Trigger: event "narrative.simulate-request" з payload NarrativeSimulateRequest
 // (organization_id, seed_type, seed_payload, requested_by, num_variants).
 //
-// Step graph:
-//   1. gather-context        — last 7d signals + active counter_drafts + brand voice pillars
-//   2. generate-variants     — generateObjectOpenAI (gpt-4o-mini, SimulatorOutputSchema)
-//   3. score-variants        — 5 hardcoded prompts × 2 models (gpt-4o-mini + claude-haiku-4-5).
-//                              Compute mention_rate / avg_position / score per variant.
-//   4. persist-variants      — INSERT rows у narrative_variants table.
-//   5. persist-run           — runs row з SimulatorRunStatsSchema.
+// Step graph (post-2026-04-26 refactor — see evals/reports/ baseline):
+//   0. create-run-row        — placeholder runs row so cost ledger can tag with run_id
+//   1. gather-context        — last 7d signals + active counter_drafts + Peec snapshot brand context
+//   2. generate-variants     — N PARALLEL gpt-4o-mini calls, one variant per sampled angle.
+//                              Inlines the forbidden-phrase ban; re-rolls once if hits ≥ 2.
+//   2.5. phrase-availability — per-variant Tavily clash check (penalty multiplier later).
+//   3. judge-variants        — single claude-sonnet-4-5 call rates ALL variants on 4 dims.
+//                              Replaces the legacy 30-call brand-recall ranking step that
+//                              was confirmed body-insensitive by the baseline eval.
+//   4. assemble-scored       — combine drafts + judge verdict + phrase penalty → final rows.
+//   5. persist-variants      — INSERT rows у narrative_variants table (judge data in metadata jsonb).
+//   6. finalize-run          — runs row з SimulatorRunStatsSchema.
 import { z } from "zod";
 
 import { inngest } from "@/inngest/client";
 import type { Json } from "@/lib/supabase/types";
 import {
+  countForbiddenHits,
+  findForbiddenHits,
+  renderForbiddenListForPrompt,
+} from "@/lib/brand/forbidden-phrases";
+import {
   NarrativeVariantSchema,
-  SimulatorOutputSchema,
   type NarrativeVariant,
-  type SimulatorOutput,
 } from "@/lib/schemas/narrative-variant";
+import { SignalSentiment } from "@/lib/schemas/signal";
 import { SimulatorRunStatsSchema } from "@/lib/schemas/run-stats";
 import { generateObjectAnthropic } from "@/lib/services/anthropic";
 import { sumRunCost } from "@/lib/services/cost";
@@ -30,6 +39,7 @@ import {
 } from "@/lib/services/peec-snapshot";
 import { tavilySearch } from "@/lib/services/tavily";
 import { createServiceClient } from "@/lib/supabase/server";
+import { judgeVariants } from "@/lib/services/variant-judge";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -41,49 +51,87 @@ import { createServiceClient } from "@/lib/supabase/server";
  */
 const FALLBACK_BRAND_VOICE = "confident-builder";
 
-/**
- * Fallback prompts — used when Peec snapshot has fewer than 3 prompts (e.g.,
- * fresh org without tracked queries yet). These are the original 5 evergreen
- * CRM-category probes.
- */
-const FALLBACK_SCORING_PROMPTS = [
-  "What are the top CRM platforms for high-growth startups in 2026?",
-  "Which modern CRM tools best handle relationship intelligence at scale?",
-  "List the leading alternatives to Salesforce for tech companies.",
-  "Which CRM platforms have the best data model for B2B SaaS teams?",
-  "Recommend a CRM with strong API and customization for product teams.",
-] as const;
-
 const PHRASE_PENALTY = 0.7; // multiplier when phrase_availability.taken === true
 const MAX_TAVILY_PER_W5_RUN = 5;
 
 /**
- * Score formula per CONTRACTS.md §2.5:
- *   score = mention_rate × (1 / avg_position), clamped to [0, 1].
- *   avg_position = null  → score = 0 (brand never mentioned).
- *   avg_position < 1 is impossible (Zod min(1)), but we clamp defensively.
+ * Angle taxonomy used to enforce diversity across variants. The W5 simulator
+ * samples `num_variants` distinct angles per run and asks for ONE variant per
+ * angle in parallel — this prevents the model from emitting three rephrasings
+ * of the same template (the regression captured in the 2026-04-26 baseline
+ * eval, see evals/reports/).
+ *
+ * Each angle gets a ≤2-sentence hint plus a list of acceptable proof points
+ * the variant should hint at. Add new angles freely; sampling is uniform.
  */
-function computeScore(mention_rate: number, avg_position: number | null): number {
-  if (avg_position === null) return 0;
-  const safePos = Math.max(1, avg_position);
-  const raw = mention_rate * (1 / safePos);
-  return Math.max(0, Math.min(1, raw));
+const ANGLES = [
+  {
+    key: "data_model",
+    label: "Data model flexibility",
+    hint: "Focus on Attio's flexible objects, custom relationships, and how teams shape the schema to their workflow without admin overhead. Hint at typed records, real-time linking, no rigid lead-account-opportunity hierarchy.",
+  },
+  {
+    key: "migration",
+    label: "Migration speed",
+    hint: "Focus on how fast a team moves to Attio: days not months, parallel-run period, no data loss, no Big Bang cutover. Concrete numbers (X days, Y records, Z integrations) preferred over adjectives.",
+  },
+  {
+    key: "api_dx",
+    label: "Developer experience",
+    hint: "Focus on the API and SDK ergonomics: real-time API, typed SDKs, webhook contract, no rate-limit roulette. Audience is engineers who will integrate the CRM with internal systems.",
+  },
+  {
+    key: "pricing",
+    label: "Transparent pricing",
+    hint: "Focus on transparent pricing and absence of hidden tiers, per-seat surprises, or paid premium features that should be standard. NEVER disparage a competitor by name; talk about the model.",
+  },
+  {
+    key: "speed",
+    label: "Daily UX speed",
+    hint: "Focus on workspace responsiveness, search latency, keyboard-first navigation, the feel of opening Attio every morning vs the alternative. Concrete UI moments, not abstractions.",
+  },
+  {
+    key: "specialization",
+    label: "B2B SaaS / RevOps fit",
+    hint: "Focus on Attio being built for modern B2B SaaS / RevOps teams who outgrew generic CRM. Mention the specific shape of customer data SaaS sells (workspaces, seats, expansion) that legacy CRM doesn't model.",
+  },
+] as const;
+type Angle = (typeof ANGLES)[number];
+
+/** Random sample of N distinct angles. Falls back to wrap-around if N > pool. */
+function sampleAngles(n: number): Angle[] {
+  const pool = [...ANGLES];
+  // Fisher-Yates shuffle.
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  if (n <= pool.length) return pool.slice(0, n);
+  // Should not happen (ANGLES.length=6, num_variants≤5) but degrade gracefully.
+  const out: Angle[] = [];
+  for (let i = 0; i < n; i++) out.push(pool[i % pool.length]);
+  return out;
 }
 
-// ---------------------------------------------------------------------------
-// Sub-schemas for inner LLM scoring calls
-// ---------------------------------------------------------------------------
+// Threshold above which we re-roll a freshly generated variant. Two hits is
+// our empirical "more than incidental" cutoff from the baseline run (variants
+// 0 and 2 had 5 and 3 hits respectively).
+const FORBIDDEN_REROLL_THRESHOLD = 2;
 
-/**
- * Per-prompt LLM ranking response. We ask the model to list the brands it
- * would recommend for the prompt — `brand_ranking[i]` is rank `i+1`. Empty
- * array = brand not in the consideration set.
- */
-const BrandRankingSchema = z.object({
-  brand_ranking: z.array(z.string()).max(15),
-  reasoning: z.string().min(1),
+/** Single-variant generation schema — used by parallel angle calls. */
+const VariantDraftSchema = z.object({
+  body: z
+    .string()
+    .min(50)
+    .max(1500)
+    .describe("Counter-narrative body, 3-6 sentences, brand-voiced"),
+  predicted_sentiment: SignalSentiment,
+  score_reasoning: z
+    .string()
+    .min(20)
+    .describe("≥20 chars explaining why this variant is on-brand and on-angle"),
 });
-type BrandRanking = z.infer<typeof BrandRankingSchema>;
+type VariantDraft = z.infer<typeof VariantDraftSchema>;
 
 /**
  * Claim phrase extraction — pull the most distinctive 3-7 word phrase from a
@@ -102,43 +150,6 @@ type PhraseAvailability = {
   by: string[];
   evidence_urls: string[];
 };
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Locate the 1-indexed position of the brand inside the ranked list. Match is
- * case-insensitive substring (e.g. "Attio CRM" still counts as Attio). Returns
- * null if the brand is absent.
- */
-function findBrandPosition(
-  ranking: string[],
-  brand_name: string,
-): number | null {
-  const needle = brand_name.toLowerCase();
-  const idx = ranking.findIndex((name) => name.toLowerCase().includes(needle));
-  return idx === -1 ? null : idx + 1;
-}
-
-/**
- * Aggregate a flat array of position results (one per prompt × model run) into
- * mention_rate and avg_position. avg_position only averages the runs that
- * actually mentioned the brand; null when no run mentioned it.
- */
-function aggregateScores(positions: Array<number | null>): {
-  mention_rate: number;
-  avg_position: number | null;
-} {
-  if (positions.length === 0) return { mention_rate: 0, avg_position: null };
-  const mentions = positions.filter((p): p is number => p !== null);
-  const mention_rate = mentions.length / positions.length;
-  const avg_position =
-    mentions.length === 0
-      ? null
-      : mentions.reduce((acc, n) => acc + n, 0) / mentions.length;
-  return { mention_rate, avg_position };
-}
 
 // ---------------------------------------------------------------------------
 // Inngest function
@@ -192,14 +203,16 @@ export async function __narrativeSimulatorHandler({
     });
 
     // -----------------------------------------------------------------------
-    // 1. gather-context — Peec snapshot baseline (prompts + own brand + competitors)
+    // 1. gather-context — Peec snapshot baseline (own brand + competitors)
     // -----------------------------------------------------------------------
     //   Reads peec-snapshot.json для:
     //   • own brand name (is_own=true) + domains (used як exclude_domains у phrase-availability)
     //   • competitor names + aliases (used для phrase availability detection)
-    //   • tracked prompts[] — replace 5 hardcoded CRM probes з real landscape
     //   • baseline brand_report (visibility, position, sentiment) для lift_vs_baseline
-    //   Якщо snapshot < 3 prompts — fallback на FALLBACK_SCORING_PROMPTS.
+    //
+    //   Note: tracked Peec prompts used to power the legacy ranking-prompt
+    //   scoring; the judge-based scoring (step 3) does not need them, so we
+    //   no longer fetch panel_prompts here.
     const context = await step.run("gather-context", async () => {
       const supabase = createServiceClient();
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
@@ -243,11 +256,6 @@ export async function __narrativeSimulatorHandler({
             aliases: b.aliases,
           })) ?? [];
 
-      // Panel prompts — Peec snapshot is the SSOT once it has ≥3 entries.
-      const peecPrompts = snapshot?.prompts.map((p) => p.text) ?? [];
-      const panel_prompts: readonly string[] =
-        peecPrompts.length >= 3 ? peecPrompts : FALLBACK_SCORING_PROMPTS;
-
       // Baseline visibility / position / sentiment for own brand (latest day)
       const baselineReport = snapshot
         ? getLatestBrandReport(snapshot, brand_name)
@@ -268,13 +276,17 @@ export async function __narrativeSimulatorHandler({
         own_domains,
         own_aliases,
         competitors,
-        panel_prompts,
         baseline,
       };
     });
 
     // -----------------------------------------------------------------------
-    // 2. generate-variants
+    // 2. generate-variants — N parallel calls, one variant per angle
+    //    Replaces the old single-batch call. Each call asks for ONE variant
+    //    with an explicit angle hint ("focus on data model" / "focus on
+    //    migration speed" / etc) and inlines the forbidden-phrase ban. After
+    //    generation, we run countForbiddenHits on the body and re-roll once
+    //    if hits >= FORBIDDEN_REROLL_THRESHOLD.
     // -----------------------------------------------------------------------
     const generated = await step.run("generate-variants", async () => {
       const seedSummary = JSON.stringify(seed_payload).slice(0, 1500);
@@ -290,34 +302,83 @@ export async function __narrativeSimulatorHandler({
         .map((d, i) => `${i + 1}. (${d.channel_hint}) ${d.body.slice(0, 200)}`)
         .join("\n") || "(none)";
 
-      const prompt = [
-        `You are a brand-narrative strategist generating ${num_variants} ranked counter-narratives for ${context.brand_name}.`,
-        `Brand voice pillars: ${context.brand_voice_pillars.join(", ")}.`,
-        `Seed type: ${seed_type}. Seed payload (JSON): ${seedSummary}`,
-        ``,
-        `Recent signals (last 7d):`,
-        recentSignalsBlock,
-        ``,
-        `Active counter-drafts (status=draft):`,
-        activeDraftsBlock,
-        ``,
-        `Produce exactly ${num_variants} variants ranked 1..${num_variants} (rank 1 = your strongest pick).`,
-        `Each variant must include: rank (1..${num_variants}), body (50-1500 chars, brand-voiced), score (0..1; you may set to 0.5 placeholder, scoring step will overwrite), score_reasoning (≥20 chars), predicted_sentiment (positive|neutral|negative — sentiment of the variant text itself), avg_position (set null), mention_rate (0..1; placeholder 0), evidence_refs (≥1 strings; reuse signal IDs / source URLs / seed identifiers).`,
-        `Echo the seed in seed_echo (≤500 chars summary).`,
-      ].join("\n");
+      const angles = sampleAngles(num_variants);
+      const forbiddenBlock = renderForbiddenListForPrompt();
 
-      const { object } = await generateObjectOpenAI<SimulatorOutput>({
-        schema: SimulatorOutputSchema,
-        prompt,
-        model: "gpt-4o-mini",
-        organization_id,
-        operation: "narrative-simulator:generate",
-        schemaName: "SimulatorOutput",
-        temperature: 0.7,
-        run_id: runRow.id,
-      });
+      const buildPrompt = (angle: Angle, retryHint: string): string =>
+        [
+          `You are a senior brand-narrative strategist writing ONE counter-narrative variant for ${context.brand_name}.`,
+          `Brand voice pillars: ${context.brand_voice_pillars.join(", ")}.`,
+          `Seed type: ${seed_type}. Seed payload (JSON): ${seedSummary}`,
+          ``,
+          `Recent signals (last 7d):`,
+          recentSignalsBlock,
+          ``,
+          `Active counter-drafts (status=draft):`,
+          activeDraftsBlock,
+          ``,
+          `ANGLE FOR THIS VARIANT: ${angle.label}`,
+          angle.hint,
+          ``,
+          `Hard rules:`,
+          `- DO NOT use the template "competitor X claims Y, but At Attio…". Open differently — with the proof point, with a number, with a concrete user moment, with a question.`,
+          `- DO NOT name a competitor in the opening sentence.`,
+          `- Include at least one concrete proof point: a feature name, a number, a measurable outcome, or a named integration.`,
+          `- Prose, 3-6 sentences, 50-1500 chars. Conversational and confident, not preachy.`,
+          ``,
+          forbiddenBlock,
+          ``,
+          retryHint,
+          ``,
+          `Return: body (the variant text), predicted_sentiment (positive|neutral|negative — of the variant itself), score_reasoning (≥20 chars on why this nails the "${angle.label}" angle).`,
+        ]
+          .filter((line) => line !== "")
+          .join("\n");
 
-      return object;
+      const generateOnce = async (
+        angle: Angle,
+        retryHint: string,
+        temperature: number,
+      ): Promise<VariantDraft> => {
+        const { object } = await generateObjectOpenAI<VariantDraft>({
+          schema: VariantDraftSchema,
+          prompt: buildPrompt(angle, retryHint),
+          model: "gpt-4o-mini",
+          organization_id,
+          operation: "narrative-simulator:generate-angle",
+          schemaName: "VariantDraft",
+          temperature,
+          run_id: runRow.id,
+        });
+        return object;
+      };
+
+      const drafts = await Promise.all(
+        angles.map(async (angle) => {
+          let draft = await generateOnce(angle, "", 0.85);
+          let forbidden_retry_count = 0;
+          let initial_hits = countForbiddenHits(draft.body);
+          if (initial_hits >= FORBIDDEN_REROLL_THRESHOLD) {
+            const violations = findForbiddenHits(draft.body);
+            const retryHint = `Your previous attempt used these banned terms: ${[...violations.forbidden_words, ...violations.ai_tropes].join(", ")}. Rewrite without ANY of them. Use specific, concrete language instead.`;
+            const retry = await generateOnce(angle, retryHint, 0.95);
+            forbidden_retry_count = 1;
+            // Keep retry only if it actually reduced hits.
+            if (countForbiddenHits(retry.body) < initial_hits) {
+              draft = retry;
+            }
+          }
+          return {
+            angle: angle.key,
+            angle_label: angle.label,
+            draft,
+            forbidden_retry_count,
+            final_forbidden_hits: countForbiddenHits(draft.body),
+          };
+        }),
+      );
+
+      return { drafts };
     });
 
     // -----------------------------------------------------------------------
@@ -327,7 +388,9 @@ export async function __narrativeSimulatorHandler({
     // -----------------------------------------------------------------------
     const phraseFlags = await step.run("phrase-availability", async () => {
       const result: Map<number, PhraseAvailability> = new Map();
-      const variants = generated.variants.slice(0, MAX_TAVILY_PER_W5_RUN);
+      const variants = generated.drafts
+        .slice(0, MAX_TAVILY_PER_W5_RUN)
+        .map((d) => d.draft);
 
       for (let i = 0; i < variants.length; i++) {
         const variant = variants[i];
@@ -400,99 +463,128 @@ export async function __narrativeSimulatorHandler({
     );
 
     // -----------------------------------------------------------------------
-    // 3. score-variants — N panel prompts × 2 models per variant
-    //    Now uses Peec snapshot prompts (or fallback) and dynamic brand_name.
-    //    Applies phrase-availability penalty + computes lift_vs_baseline.
+    // 3. judge-variants — single Claude Sonnet 4.5 call rates ALL variants.
+    //    Replaces the legacy 5-prompts × 2-models brand-recall ranking step
+    //    that the 2026-04-26 baseline eval (evals/reports/) confirmed was
+    //    body-insensitive: lorem ipsum scored 0.40 vs real Attio variant 0.45
+    //    because the ranking judges retrieved Attio from brand-knowledge
+    //    regardless of body. Direct rating is body-sensitive by construction
+    //    and ~30× cheaper.
+    //
+    //    Score formula now: score = judge_score / 10 (normalized to [0,1] so
+    //    UI's existing score.toFixed(2) keeps showing 0–1).
+    //    mention_rate / avg_position are kept on the row for backward compat
+    //    but set to 0 / null since they no longer represent anything.
+    //
+    //    phrase-availability penalty still applies multiplicatively.
     // -----------------------------------------------------------------------
     type ScoredEntry = NarrativeVariant & {
       _idx: number;
       _phrase: PhraseAvailability;
       _lift: number | null;
+      _angle: string;
+      _angle_label: string;
+      _forbidden_retry: number;
+      _judge_score: number;
+      _judge_reasoning: string;
+      _judge_dimensions: {
+        specificity: number;
+        brand_voice: number;
+        persuasiveness: number;
+        differentiation: number;
+      };
     };
 
-    const scored = await step.run("score-variants", async () => {
+    const judgeRes = await step.run("judge-variants", async () => {
+      const judgeInput = generated.drafts.map((d, i) => ({
+        idx: i,
+        body: d.draft.body,
+      }));
+      const { output } = await judgeVariants({
+        brand_name: context.brand_name,
+        brand_voice_pillars: context.brand_voice_pillars,
+        variants: judgeInput,
+        organization_id,
+        run_id: runRow.id,
+      });
+      return output;
+    });
+
+    const scored = await step.run("assemble-scored", async () => {
       const out: ScoredEntry[] = [];
 
-      for (let vi = 0; vi < generated.variants.length; vi++) {
-        const variant = generated.variants[vi];
-        const positions: Array<number | null> = [];
-
-        for (const prompt of context.panel_prompts) {
-          // The variant `body` becomes context the panel "knows" about — we
-          // ask each panel which brands it would rank for `prompt` after
-          // reading the variant. Mention/position then proxy how persuasively
-          // the variant lifted the brand into the recall set.
-          const ranking_prompt = [
-            `Brand-positioning context (a candidate counter-narrative for ${context.brand_name}):`,
-            `"""`,
-            variant.body,
-            `"""`,
-            ``,
-            `Question: ${prompt}`,
-            ``,
-            `List up to 10 brand names ordered by how strongly you would recommend them, most-recommended first. Provide a one-sentence reasoning.`,
-          ].join("\n");
-
-          const [openaiRes, anthropicRes] = await Promise.all([
-            generateObjectOpenAI<BrandRanking>({
-              schema: BrandRankingSchema,
-              prompt: ranking_prompt,
-              model: "gpt-4o-mini",
-              organization_id,
-              operation: "narrative-simulator:score-openai",
-              schemaName: "BrandRanking",
-              temperature: 0,
-              run_id: runRow.id,
-            }),
-            generateObjectAnthropic<BrandRanking>({
-              schema: BrandRankingSchema,
-              prompt: ranking_prompt,
-              model: "claude-haiku-4-5-20251001",
-              organization_id,
-              operation: "narrative-simulator:score-anthropic",
-              schemaName: "BrandRanking",
-              temperature: 0,
-              run_id: runRow.id,
-            }),
-          ]);
-
-          positions.push(
-            findBrandPosition(openaiRes.object.brand_ranking, context.brand_name),
-            findBrandPosition(anthropicRes.object.brand_ranking, context.brand_name),
+      for (let vi = 0; vi < generated.drafts.length; vi++) {
+        const entry = generated.drafts[vi];
+        const verdict = judgeRes.verdicts.find((v) => v.idx === vi);
+        if (!verdict) {
+          throw new Error(
+            `[narrative-simulator] judge missing verdict for variant idx=${vi}`,
           );
         }
 
-        const { mention_rate, avg_position } = aggregateScores(positions);
-        let score = computeScore(mention_rate, avg_position);
-
-        // Apply phrase-availability penalty
+        // Phrase-availability penalty — same multiplicative logic as before.
         const phrase = phraseFlagsByIdx.get(vi) ?? {
           taken: false,
           by: [],
           evidence_urls: [],
         };
+        let score = verdict.judge_score / 10;
         if (phrase.taken) {
           score = Math.max(0, Math.min(1, score * PHRASE_PENALTY));
         }
 
-        // Lift vs Peec baseline visibility (positive = variant outperforms current org tracking)
-        const lift =
-          context.baseline !== null
-            ? mention_rate - context.baseline.visibility
+        // Lift no longer mention-rate-based. Keep as null until we have a
+        // judge-vs-baseline metric (out of scope this iteration).
+        const lift: number | null = null;
+
+        // Evidence refs — derive from seed because the new generation prompt
+        // doesn't ask the model to invent them (used to be a hallucination
+        // surface). Always at least one entry to pass schema min(1).
+        const seed_signal_id =
+          seed_type === "competitor-move" &&
+          typeof seed_payload?.signal_id === "string"
+            ? seed_payload.signal_id
             : null;
+        const seed_counter_draft_id =
+          typeof seed_payload?.counter_draft_id === "string"
+            ? seed_payload.counter_draft_id
+            : null;
+        const evidence_seed = seed_signal_id
+          ? `signal:${seed_signal_id}`
+          : seed_counter_draft_id
+            ? `counter-draft:${seed_counter_draft_id}`
+            : `seed:${seed_type}`;
 
         const parsed = NarrativeVariantSchema.parse({
-          ...variant,
-          mention_rate,
-          avg_position,
+          rank: vi + 1, // placeholder; re-ranked below
+          body: entry.draft.body,
           score,
+          score_reasoning: entry.draft.score_reasoning,
+          predicted_sentiment: entry.draft.predicted_sentiment,
+          // Legacy ranking-prompt metrics — retired. Kept on the row for
+          // backward compat with UI / DB consumers. mention_rate stays a
+          // valid number (schema requires non-null), avg_position is null.
+          avg_position: null,
+          mention_rate: 0,
+          evidence_refs: [evidence_seed, `angle:${entry.angle}`],
         });
-        out.push({ ...parsed, _idx: vi, _phrase: phrase, _lift: lift });
+
+        out.push({
+          ...parsed,
+          _idx: vi,
+          _phrase: phrase,
+          _lift: lift,
+          _angle: entry.angle,
+          _angle_label: entry.angle_label,
+          _forbidden_retry: entry.forbidden_retry_count,
+          _judge_score: verdict.judge_score,
+          _judge_reasoning: verdict.judge_reasoning,
+          _judge_dimensions: verdict.dimensions,
+        });
       }
 
-      // Re-rank by computed score so rank=1 is the strongest variant after
-      // empirical scoring. Stable for ties on insertion order.
-      out.sort((a, b) => b.score - a.score);
+      // Re-rank by judge_score desc. Stable for ties on insertion order.
+      out.sort((a, b) => b._judge_score - a._judge_score);
       return out.map((v, i) => ({ ...v, rank: i + 1 }));
     });
 
@@ -527,6 +619,16 @@ export async function __narrativeSimulatorHandler({
           phrase_availability: v._phrase,
           lift_vs_baseline: v._lift,
           baseline: context.baseline,
+          // New judge-based scoring fields — additive; lib/schemas stays
+          // untouched so no migration. UI reads from metadata.judge_*.
+          angle: v._angle,
+          angle_label: v._angle_label,
+          forbidden_retry_count: v._forbidden_retry,
+          judge_score: v._judge_score,
+          judge_reasoning: v._judge_reasoning,
+          judge_dimensions: v._judge_dimensions,
+          set_diversity_score: judgeRes.set_diversity_score,
+          set_diversity_reasoning: judgeRes.set_diversity_reasoning,
         } as unknown as Json,
       }));
 
@@ -540,13 +642,17 @@ export async function __narrativeSimulatorHandler({
     // -----------------------------------------------------------------------
     await step.run("finalize-run", async () => {
       const cost_usd_cents = await sumRunCost(runRow.id);
+      // prompts_per_variant=0 because the legacy 5-prompt panel is replaced
+      // by a single judge call. SimulatorRunStatsSchema is in CRITICAL zone
+      // (lib/schemas/**) so we keep its shape and just emit 0 for the field
+      // that no longer applies.
       const stats = SimulatorRunStatsSchema.parse({
         function_name: "narrative-simulator",
         started_at: startedAt,
         duration_seconds: Math.round((Date.now() - startMs) / 1000),
         variants_generated: persistedCount,
-        prompts_per_variant: context.panel_prompts.length,
-        models_used: ["gpt-4o-mini", "claude-haiku-4-5-20251001"],
+        prompts_per_variant: 0,
+        models_used: ["gpt-4o-mini", "claude-sonnet-4-5"],
         cost_usd_cents,
       });
 
