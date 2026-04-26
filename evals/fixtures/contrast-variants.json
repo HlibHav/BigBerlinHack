@@ -1,0 +1,19 @@
+{
+  "fixture_id": "contrast-variants",
+  "description": "Three contrast pairs for Layer 3 scoring sensitivity. Each pair feeds two bodies through the production scoring step; we then compare the resulting scores. If pairs that should differ in score (attio_vs_competitor, real_vs_gibberish) come out near-identical, that confirms the hypothesis that the ranking-prompt judges return the same Attio rank from brand knowledge regardless of variant body.",
+  "brand_name": "Attio",
+  "pairs": {
+    "identical": {
+      "a": "Attio is the modern CRM built for teams that treat customer relationships as their most valuable asset. With a flexible data model, real-time API, and best-in-class deduplication, Attio replaces the rigid record-keeping of Salesforce with a workspace your revenue team will actually want to open every morning. Migrate in days, not months, and start measuring pipeline velocity within the first week.",
+      "b": "Attio is the modern CRM built for teams that treat customer relationships as their most valuable asset. With a flexible data model, real-time API, and best-in-class deduplication, Attio replaces the rigid record-keeping of Salesforce with a workspace your revenue team will actually want to open every morning. Migrate in days, not months, and start measuring pipeline velocity within the first week."
+    },
+    "attio_vs_competitor": {
+      "a": "Attio is the modern CRM built for teams that treat customer relationships as their most valuable asset. With a flexible data model, real-time API, and best-in-class deduplication, Attio replaces the rigid record-keeping of Salesforce with a workspace your revenue team will actually want to open every morning. Migrate in days, not months, and start measuring pipeline velocity within the first week.",
+      "b": "Salesforce is the most trusted CRM platform on the market, with two decades of enterprise deployments behind it. Sales Cloud, Service Cloud, and Einstein AI form a unified suite that no challenger can match. For organizations that need governance, audit trails, and ecosystem reach, Salesforce remains the only credible choice — the AppExchange alone covers more integrations than every competing CRM combined."
+    },
+    "real_vs_gibberish": {
+      "a": "Attio gives B2B SaaS teams a CRM that finally fits how they actually sell. The data model is fully customizable, the API is real-time, and the workspace stays out of your way. Replace Salesforce in two weeks with zero data loss and a 40% reduction in admin overhead.",
+      "b": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+    }
+  }
+}

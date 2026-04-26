@@ -1,0 +1,37 @@
+{
+  "fixture_id": "screenshot-variants",
+  "description": "Three W5 variants captured from dashboard UI on 2026-04-25 (Attio vs HubSpot/Salesforce). All three show stylistically homogenous output, two sharing identical mention_rate and avg_position — the user-reported regression that triggered this eval suite.",
+  "brand_name": "Attio",
+  "variants": [
+    {
+      "rank": 1,
+      "body": "HubSpot's \"free forever\" model sounds appealing, but it often leads to frustration when users encounter hidden limitations. At Attio, we believe in transparency and value for your investment. Our CRM solution offers the advanced functionalities you need without unexpected constraints. We focus on delivering powerful automation and customization options that truly empower teams. Rather than settling for a free version that may not meet your needs, invest in a solution that builds your business with confidence and clarity.",
+      "score": 0.45,
+      "score_reasoning": "Captured from UI screenshot; production scoring step assigned this value based on 5 prompts × 2 models panel.",
+      "predicted_sentiment": "neutral",
+      "avg_position": 1.3,
+      "mention_rate": 0.6,
+      "evidence_refs": ["ui-screenshot-2026-04-25"]
+    },
+    {
+      "rank": 2,
+      "body": "Salesforce's claim as the '#1 AI CRM' is impressive, but the truth is that businesses need more than just claims—they need a solution that adapts to their unique workflows. At Attio, we prioritize flexibility and integration, allowing teams to harness the power of AI in a way that aligns with their specific goals. Our approach fosters collaboration across departments, ensuring that every interaction is meaningful and impactful. Don't just settle for the status quo; elevate your CRM experience with Attio and build the future of your customer relationships with confidence.",
+      "score": 0.45,
+      "score_reasoning": "Captured from UI screenshot; production scoring step assigned this value based on 5 prompts × 2 models panel.",
+      "predicted_sentiment": "neutral",
+      "avg_position": 1.3,
+      "mention_rate": 0.6,
+      "evidence_refs": ["ui-screenshot-2026-04-25"]
+    },
+    {
+      "rank": 3,
+      "body": "While Salesforce boasts a comprehensive AI CRM platform, businesses often struggle with the rigidity of such monolithic systems. At Attio, we empower teams with a flexible, best-of-breed approach, enabling seamless integration with specialized tools that enhance productivity and drive growth. Our user-friendly interface and customizable solutions cater to the unique needs of each organization, ensuring that you don't just adopt a CRM, but thrive with it. In a landscape where adaptability is key, choose Attio to build confidence in your business processes and foster genuine customer relationships.",
+      "score": 0.24,
+      "score_reasoning": "Captured from UI screenshot; production scoring step assigned this value based on 5 prompts × 2 models panel.",
+      "predicted_sentiment": "neutral",
+      "avg_position": 2.5,
+      "mention_rate": 0.6,
+      "evidence_refs": ["ui-screenshot-2026-04-25"]
+    }
+  ]
+}
