@@ -498,6 +498,103 @@ export type Database = {
           },
         ]
       }
+      // W11 podcast-prep — manually patched (types:gen blocked by pre-existing
+      // seed.sql duplicate-signals bug). Mirror migration
+      // supabase/migrations/20260426070000_create_podcast_briefs.sql exactly.
+      // Re-run `pnpm types:gen` once seed bug is fixed to regenerate this block.
+      podcast_briefs: {
+        Row: {
+          anticipated_qa: Json
+          audience: string
+          brand_drop_moments: Json
+          competitor_mention_strategy: Json
+          created_at: string
+          episode_topic: string
+          host_name: string
+          id: string
+          judge_dimensions: Json | null
+          judge_reasoning: string | null
+          judge_score: number | null
+          markdown_brief: string
+          metadata: Json
+          organization_id: string
+          podcast_name: string
+          previous_episode_urls: Json
+          requested_by: string | null
+          scheduled_date: string | null
+          simulator_run_id: string | null
+          talking_points: Json
+          top_fixes: Json
+          topics_to_avoid: Json
+          updated_at: string | null
+        }
+        Insert: {
+          anticipated_qa?: Json
+          audience: string
+          brand_drop_moments?: Json
+          competitor_mention_strategy?: Json
+          created_at?: string
+          episode_topic: string
+          host_name: string
+          id?: string
+          judge_dimensions?: Json | null
+          judge_reasoning?: string | null
+          judge_score?: number | null
+          markdown_brief?: string
+          metadata?: Json
+          organization_id: string
+          podcast_name: string
+          previous_episode_urls?: Json
+          requested_by?: string | null
+          scheduled_date?: string | null
+          simulator_run_id?: string | null
+          talking_points?: Json
+          top_fixes?: Json
+          topics_to_avoid?: Json
+          updated_at?: string | null
+        }
+        Update: {
+          anticipated_qa?: Json
+          audience?: string
+          brand_drop_moments?: Json
+          competitor_mention_strategy?: Json
+          created_at?: string
+          episode_topic?: string
+          host_name?: string
+          id?: string
+          judge_dimensions?: Json | null
+          judge_reasoning?: string | null
+          judge_score?: number | null
+          markdown_brief?: string
+          metadata?: Json
+          organization_id?: string
+          podcast_name?: string
+          previous_episode_urls?: Json
+          requested_by?: string | null
+          scheduled_date?: string | null
+          simulator_run_id?: string | null
+          talking_points?: Json
+          top_fixes?: Json
+          topics_to_avoid?: Json
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "podcast_briefs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podcast_briefs_simulator_run_id_fkey"
+            columns: ["simulator_run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prelaunch_checks: {
         Row: {
           baseline: Json

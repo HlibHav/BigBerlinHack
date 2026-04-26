@@ -15,6 +15,7 @@ import { competitorRadar, competitorRadarSchedule } from "./competitor-radar";
 import { contentExpand } from "./content-expand";
 import { narrativeSimulator } from "./narrative-simulator";
 import { morningBrief, morningBriefSchedule } from "./morning-brief";
+import { podcastPrep } from "./podcast-prep";
 import { prelaunchCheck } from "./prelaunch-check";
 
 export {
@@ -24,6 +25,7 @@ export {
   narrativeSimulator,
   morningBrief,
   morningBriefSchedule,
+  podcastPrep,
   prelaunchCheck,
 };
 
@@ -34,5 +36,6 @@ export const functions = [
   narrativeSimulator,
   morningBrief,
   morningBriefSchedule,
+  podcastPrep,
   prelaunchCheck,
 ] as const;

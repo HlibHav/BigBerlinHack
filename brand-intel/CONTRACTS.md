@@ -74,9 +74,18 @@ export const events = {
   "morning-brief.delivered": MorningBriefDelivered,
   "competitor-radar.tick": CompetitorRadarTick,
   "narrative.simulate-request": NarrativeSimulateRequest,
+  "content.expand-request": ContentExpandRequest,
+  "prelaunch.check-request": PrelaunchCheckRequest,
+  "podcast.prep-request": PodcastPrepRequest,
   "widget.regenerate": WidgetRegenerate,
 } as const;
 ```
+
+W11 podcast-prep payload schema lives in `lib/schemas/podcast-brief.ts`
+(`PodcastPrepRequestSchema`) — re-exported through `lib/events.ts` for events
+registry consistency. See `brand-intel/features/podcast-prep.md` §6.2 for the
+full schema family (TalkingPoint, AnticipatedQA, BrandDropMoment, TopicToAvoid,
+CompetitorMentionStrategy, PodcastBriefDimensions, PodcastBriefOutput).
 
 **Inngest client (`inngest/client.ts`):**
 

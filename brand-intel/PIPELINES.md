@@ -352,6 +352,36 @@ Firecrawl path — `[DEFERRED]` per hackathon scope cut (Tavily covers).
 
 ---
 
+## W11 — Podcast Prep `[ACTIVE post-hackathon]`
+
+**Trigger:** event `podcast.prep-request` від founder через UI form on `/podcast-prep`.
+
+**Purpose:** генерує retrieval-optimized brief для founder перед podcast appearance. Транскрипт публікується на 5-10 surfaces (Spotify show notes, YouTube auto-captions, host site, Apple Podcasts, aggregators) — всі crawl'аються AI engines. Один podcast = 6-12 місяців visibility tail.
+
+**Step graph:** 11 steps (0..10) per `inngest/functions/podcast-prep.ts`.
+
+```
+0. create-run-row              → ok=false placeholder
+1. gather-context              → 7d signals + 14d counter-drafts + Peec baseline + top competitors by signal frequency
+2. resolve-podcast-context     → optional Tavily fetch ≤3 previous-episode URLs for tone calibration
+3. generate-talking-points     → gpt-4o, 5-7 angle-distinct points з retrievability_score self-rating
+4. generate-anticipated-qa     → gpt-4o, 6-10 likely host questions з ≤120-word answers
+5. generate-brand-drop-moments → gpt-4o, 3-5 organic mention spots
+6. generate-avoidance-list     → gpt-4o, 3-5 topics to dodge + pivot suggestions
+7. generate-competitor-strat   → gpt-4o, per top competitor: name vs generic guidance
+8. judge-brief                 → claude-sonnet-4-5 single call, 4 dims + judge_score + ≤5 top_fixes
+9. assemble-brief              → render Markdown + INSERT podcast_briefs row
+10. finalize-run               → runs row update з PodcastPrepRunStatsSchema
+```
+
+**Cost envelope:** ~$0.055/brief (5-6 LLM calls — 4× gpt-4o + 1 sonnet talking points + 1 sonnet judge).
+
+**Schema:** all sub-schemas live у `lib/schemas/podcast-brief.ts`. Persisted into new `podcast_briefs` table (jsonb-heavy structured sections + pre-rendered `markdown_brief text` для SSR/mobile).
+
+**Feature spec (SSOT):** `brand-intel/features/podcast-prep.md`. ADR: `decisions/2026-04-26-w11-podcast-prep.md`.
+
+---
+
 ## Pipeline interactions (cross-pipeline events)
 
 ```
