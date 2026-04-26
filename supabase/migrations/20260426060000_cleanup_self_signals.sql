@@ -17,7 +17,7 @@ self_drafts as (
   select id from counter_drafts where signal_id in (select id from self_signals)
 )
 -- 1. content_variants attached до self drafts (W7 expansions)
-delete from content_variants where counter_draft_id in (select id from self_drafts);
+delete from content_variants where parent_counter_draft_id in (select id from self_drafts);
 
 with self_competitors as (
   select id from competitors where relationship = 'self'
