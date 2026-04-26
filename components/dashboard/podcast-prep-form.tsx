@@ -82,7 +82,7 @@ export function PodcastPrepForm({ organizationId, defaults }: Props) {
     }
 
     const t = toast.loading("Generating podcast brief…", {
-      description: "W11 pipeline runs ~60s — brief will appear in the list",
+      description: "Brief generation runs ~60s — will appear in the list",
     });
     startTransition(async () => {
       try {

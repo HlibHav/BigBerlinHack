@@ -171,7 +171,7 @@ export function SignalsFeed({
       {filtered.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
           {signals.length === 0
-            ? "No signals in the last 24h. Click «Run radar now» — W9 will find competitor moves."
+            ? "No signals in the last 24h. Click «Run radar now» — the radar will find competitor moves."
             : `No ${filter} severity matches the filter.`}
         </p>
       ) : (

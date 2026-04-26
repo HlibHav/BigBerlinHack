@@ -15,10 +15,10 @@ type RunsByFn = {
 };
 
 const fns: Array<{ key: keyof RunsByFn; label: string; cron?: string }> = [
-  { key: "radar", label: "W9 Radar", cron: "every 6h" },
-  { key: "simulator", label: "W5 Simulator" },
-  { key: "expand", label: "W7 Expand" },
-  { key: "brief", label: "W6′ Brief", cron: "daily 08:00 UTC" },
+  { key: "radar", label: "Competitor Radar", cron: "every 6h" },
+  { key: "simulator", label: "Narrative Simulator" },
+  { key: "expand", label: "Multi-Channel Expand" },
+  { key: "brief", label: "Morning Brief", cron: "daily 08:00 UTC" },
 ];
 
 function statusFor(run: Run): { dot: string; text: string } {

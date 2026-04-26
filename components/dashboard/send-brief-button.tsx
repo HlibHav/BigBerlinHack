@@ -16,7 +16,7 @@ export function SendBriefButton({
 
   function onClick() {
     const t = toast.loading("Sending morning brief…", {
-      description: "W6′ aggregating 24h signals + Peec pulse → Slack",
+      description: "Aggregating 24h signals + Peec pulse → Slack",
     });
     startTransition(async () => {
       try {

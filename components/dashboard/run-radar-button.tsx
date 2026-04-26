@@ -16,7 +16,7 @@ export function RunRadarButton({
 
   function onClick() {
     const t = toast.loading("Radar started", {
-      description: "W9 is scanning for competitor moves in Peec snapshot + Tavily",
+      description: "Scanning for competitor moves in Peec snapshot + Tavily",
     });
     startTransition(async () => {
       try {

@@ -34,7 +34,7 @@ export function MorningBriefPanel({
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Morning brief (W6′)
+            Morning brief
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Daily 8am UTC summary → Slack {latestBrief ? `· ${latestBrief.recipient}` : ""}
