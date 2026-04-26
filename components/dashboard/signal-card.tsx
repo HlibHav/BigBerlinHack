@@ -144,7 +144,7 @@ export function SignalCard({
         >
           {open ? "Hide details" : "Show evidence"}
         </button>
-        {signal.severity === "med" && !signal.auto_draft && !drafted ? (
+        {signal.severity !== "high" && !signal.auto_draft && !drafted ? (
           <Button size="sm" variant="outline" onClick={onGenerate} disabled={isPending}>
             {isPending ? "Triggering…" : "Generate counter-draft"}
           </Button>

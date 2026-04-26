@@ -716,7 +716,7 @@ export const competitorRadar = inngest.createFunction(
         summary: c.summary,
         reasoning: c.reasoning,
         evidence_refs: c.evidence_refs,
-        auto_draft: c.severity === "high",
+        auto_draft: false,
         metadata: c.source_channel
           ? { source_channel: c.source_channel }
           : {},
@@ -731,10 +731,12 @@ export const competitorRadar = inngest.createFunction(
       return (data ?? []) as Array<{ id: string }>;
     })) as Array<{ id: string }>;
 
-    // 8. Fan-out counter-drafts for high-severity signals ---------------------
-    const highIndices = allCandidates
-      .map((c, idx) => ({ c, idx }))
-      .filter(({ c }) => c.severity === "high");
+    // 8. Counter-drafts are now strictly user-initiated (Generate counter-draft
+    //    button on the dashboard). Auto-fan-out for high-severity is disabled —
+    //    high signals get attention via Slack morning brief, but the marketer
+    //    decides when (and which) to draft. Block kept as no-op so the stats
+    //    aggregation below still references draftsGenerated.
+    const highIndices: Array<{ c: SignalCandidate; idx: number }> = [];
 
     const draftsGenerated: string[] = [];
     for (const { c, idx } of highIndices) {
