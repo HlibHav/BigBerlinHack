@@ -42,6 +42,13 @@ type PhraseAvailability = {
   evidence_urls: string[];
 };
 
+type JudgeDimensions = {
+  specificity: number;
+  brand_voice: number;
+  persuasiveness: number;
+  differentiation: number;
+};
+
 type NarrativeVariant = {
   id: string;
   rank: number;
@@ -52,7 +59,17 @@ type NarrativeVariant = {
   mention_rate: number;
   metadata?: {
     phrase_availability?: PhraseAvailability;
-    lift_vs_baseline?: number;
+    lift_vs_baseline?: number | null;
+    // New judge-based fields (post-2026-04-26 refactor). Older rows persisted
+    // before the refactor will not have these — UI falls back to `score`.
+    angle?: string;
+    angle_label?: string;
+    forbidden_retry_count?: number;
+    judge_score?: number; // 1-10
+    judge_reasoning?: string;
+    judge_dimensions?: JudgeDimensions;
+    set_diversity_score?: number; // 1-10, same value across all rows in a run
+    set_diversity_reasoning?: string;
   } | null;
 };
 
@@ -492,13 +509,32 @@ export function DraftCard({
                       <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                         #{v.rank}
                       </span>
-                      <span className="font-medium">score {v.score.toFixed(2)}</span>
+                      {typeof v.metadata?.judge_score === "number" ? (
+                        <span
+                          className="font-medium"
+                          title={v.metadata.judge_reasoning ?? ""}
+                        >
+                          judge {v.metadata.judge_score}/10
+                        </span>
+                      ) : (
+                        <span className="font-medium">
+                          score {v.score.toFixed(2)}
+                        </span>
+                      )}
                       <span title={`predicted sentiment: ${v.predicted_sentiment}`}>
                         {sentimentEmoji[v.predicted_sentiment]}
                       </span>
+                      {v.metadata?.angle_label ? (
+                        <span
+                          title={`Angle: ${v.metadata.angle_label}`}
+                          className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300"
+                        >
+                          ∠ {v.metadata.angle_label}
+                        </span>
+                      ) : null}
                       {typeof v.metadata?.lift_vs_baseline === "number" ? (
                         <span
-                          title="mention rate − Peec baseline visibility"
+                          title="mention rate − Peec baseline visibility (legacy)"
                           className={`rounded px-1.5 py-0.5 text-[10px] ${
                             v.metadata.lift_vs_baseline >= 0
                               ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
@@ -518,13 +554,38 @@ export function DraftCard({
                           {v.metadata.phrase_availability.by.slice(0, 2).join(", ")}
                         </span>
                       ) : null}
+                      {v.metadata?.forbidden_retry_count ? (
+                        <span
+                          title="Variant was re-rolled once because the first attempt hit the brand voice forbidden-phrase ban"
+                          className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                        >
+                          ↻ re-rolled
+                        </span>
+                      ) : null}
                     </div>
-                    <span className="text-[10px] text-muted-foreground">
-                      mention {(v.mention_rate * 100).toFixed(0)}% · pos{" "}
-                      {v.avg_position !== null ? v.avg_position.toFixed(1) : "—"}
-                    </span>
+                    {v.metadata?.judge_dimensions ? (
+                      <span
+                        title="Judge sub-dimensions: specificity / brand voice / persuasiveness / differentiation"
+                        className="font-mono text-[10px] text-muted-foreground"
+                      >
+                        spc {v.metadata.judge_dimensions.specificity}
+                        {" · "}voice {v.metadata.judge_dimensions.brand_voice}
+                        {" · "}pers {v.metadata.judge_dimensions.persuasiveness}
+                        {" · "}diff {v.metadata.judge_dimensions.differentiation}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">
+                        mention {(v.mention_rate * 100).toFixed(0)}% · pos{" "}
+                        {v.avg_position !== null ? v.avg_position.toFixed(1) : "—"}
+                      </span>
+                    )}
                   </div>
                   <p className="mt-1 whitespace-pre-wrap text-xs">{v.body}</p>
+                  {v.metadata?.judge_reasoning ? (
+                    <p className="mt-1 italic text-[11px] text-muted-foreground">
+                      → {v.metadata.judge_reasoning}
+                    </p>
+                  ) : null}
                   {!decided && optimisticStatus === "draft" ? (
                     <Button
                       size="sm"
