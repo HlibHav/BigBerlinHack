@@ -36,6 +36,48 @@ All pipelines require human approval before anything goes public. Every artifact
 
 ---
 
+## Screenshots
+
+Six tabs, each one a focused view into one part of the loop. Captured against the live deploy at [bbh-brown.vercel.app/demo/attio](https://bbh-brown.vercel.app/demo/attio) on 2026-04-26.
+
+### Overview — Brand Health + Citation Gaps
+
+[![Overview tab](docs/screenshots/01-overview.png)](docs/screenshots/01-overview.png)
+
+Composite Brand Health Score (visibility · sentiment · position) with day-over-day delta and 7/30/90-day multi-line trend chart. Below it, **Citation Gaps** — URLs AI engines retrieve from that cite competitors but not Attio (Monday and Pipedrive surfaces shown), ranked by retrieval volume. Outreach priority list, generated automatically from Peec `url_report`.
+
+### Signals — 24h feed with AI evidence
+
+[![Signals tab](docs/screenshots/02-signals.png)](docs/screenshots/02-signals.png)
+
+Severity-classified competitor moves filtered by HIGH / MED / LOW. Each card carries source attribution (📊 Peec delta vs 🔍 Tavily news), avg position, sentiment emoji, and an expand drawer that surfaces real AI conversations from the Peec `chats` field — the literal ChatGPT / Perplexity reply that motivated the signal.
+
+### Drafts — counter-narratives + simulator variants
+
+[![Drafts tab](docs/screenshots/03-drafts.png)](docs/screenshots/03-drafts.png)
+
+Counter-drafts queue with stepper (Signal → Draft → Approve → Expand → Publish). Pending bucket holds anything still actionable — including approved drafts whose 3 channel variants are generated but not yet pushed to channels. Cards only fade and slip into «decided» once the user clicks **📤 Publish to channels** (or rejects).
+
+### Operations — morning brief + Peec recommendations + cost ledger
+
+[![Operations tab](docs/screenshots/04-operations.png)](docs/screenshots/04-operations.png)
+
+Today's morning brief with a **Play voice brief** button (Gradium TTS plays the Gemini-rewritten plain-prose script). Below it, **What Peec recommends** — four tabs (Owned / Editorial / Reference / UGC) showing per-surface opportunity actions sorted by `opportunity_score`. Cost ledger at the bottom reports today's spend per provider.
+
+### Pre-Launch — phrase-availability check + LLM panel
+
+[![Pre-Launch tab](docs/screenshots/05-prelaunch.png)](docs/screenshots/05-prelaunch.png)
+
+Type a draft positioning phrase, hit **Run pre-launch check** — Tavily scans general + news web for competitor clash, an N-prompt × 2-model panel measures projected mention rate, and Sonnet 4.5 synthesizes a verdict (clear / caution / clash) with English reasoning. History list keeps every previous check.
+
+### Podcast Prep — retrieval-optimized brief generator
+
+[![Podcast tab](docs/screenshots/06-podcast.png)](docs/screenshots/06-podcast.png)
+
+Founder enters podcast metadata (host, topic, scheduled date) → 11-step Inngest pipeline produces a brief with talking points, anticipated Q&A, brand-drop moments, topics-to-avoid (cross-referenced with open W9 high-severity signals), and per-competitor mention strategy. Each item includes Sonnet 4.5 judge scores across retrievability / naturality / specificity / coverage.
+
+---
+
 ## Stack
 
 | | |
@@ -147,6 +189,7 @@ Every panel falls back to a friendly empty state when the snapshot is stale or d
 - Competitive analysis (`brand-intel/feedback/competitor-builds-2026-04-26.md`) of two MCP Challenge entries we observed
 - Per-pipeline feature spec under `brand-intel/features/podcast-prep.md` + ADR
 - Peec MCP surface depth — `actions` / `url_report` / `chats` operationalized as `PeecActionsPanel`, `CitationGapCard`, `SignalAiEvidence` (snapshot fields previously dormant now drive Overview + Operations + Signals)
+- Drafts queue UX rule (`drafts-queue.tsx`) — approved counter-drafts stay in pending bucket with full opacity until `Publish to channels` is clicked, so cards don't ghost the moment 3 variants are generated
 
 **Project deliverables for the jury:**
 - Public repo: https://github.com/HlibHav/BigBerlinHack
