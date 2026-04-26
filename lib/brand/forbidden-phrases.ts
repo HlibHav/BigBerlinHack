@@ -66,6 +66,18 @@ export const AI_TROPE_PHRASES = [
   "thrive with it",
   "in a landscape where",
   "rather than settling",
+  // Added 2026-04-26 after gpt-4o eval run — judge surfaced these as the
+  // dominant residual AI patterns even with hard rules + angle hints.
+  "imagine ",
+  "have you ever",
+  "what if you could",
+  "stands out as",
+  "this isn't just",
+  "it's not about",
+  "isn't just nice-to-have",
+  "meet that challenge",
+  "ready to meet",
+  "isn't a luxury",
 ] as const;
 
 export type ForbiddenWord = (typeof FORBIDDEN_WORDS)[number];
