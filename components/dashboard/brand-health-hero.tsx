@@ -39,7 +39,7 @@ function bandLabel(s: number): string {
   return "Critical";
 }
 
-// Distinct stroke colors for up to 6 brands у multi-line chart. Self brand —
+// Distinct stroke colors for up to 6 brands in the multi-line chart. Self brand —
 // emerald (matches existing band color). Competitors — other hues.
 const BRAND_COLORS = ["#10b981", "#3b82f6", "#f97316", "#a855f7", "#ec4899", "#eab308"];
 
@@ -64,7 +64,7 @@ export function BrandHealthHero({
           Brand health
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Жодного Peec brand_report для {brandName}. Refresh peec-snapshot.json через MCP.
+          No Peec brand_report for {brandName}. Refresh peec-snapshot.json via MCP.
         </p>
       </section>
     );
@@ -230,7 +230,7 @@ function Sparkline({ series }: { series: number[] }) {
 /**
  * Multi-line trend chart — Y axis = brand health score (0-100), X axis = date.
  * Self brand colored emerald, competitors get distinct hues. Window selector
- * filters history до останніх N днів.
+ * filters history to the last N days.
  */
 function TrendChart({
   window,
@@ -253,7 +253,7 @@ function TrendChart({
     });
   }, [self, competitors, window]);
 
-  // Collect unique dates across all brands sorted asc для x-axis.
+  // Collect unique dates across all brands sorted asc for the x-axis.
   const allDates = useMemo(() => {
     const set = new Set<string>();
     for (const s of series) for (const p of s.points) set.add(p.date);
@@ -263,7 +263,7 @@ function TrendChart({
   if (allDates.length < 2) {
     return (
       <p className="mt-3 text-xs text-muted-foreground">
-        Need ≥2 days з brand_report data — refresh peec-snapshot.json для більшого діапазону.
+        Need ≥2 days of brand_report data — refresh peec-snapshot.json for a larger range.
       </p>
     );
   }

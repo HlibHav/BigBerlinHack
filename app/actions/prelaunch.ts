@@ -9,8 +9,8 @@ import { PrelaunchCheckInputSchema } from "@/lib/schemas/prelaunch-check";
 /**
  * Trigger a pre-launch check. Validates user input via Zod, generates a
  * client-visible check_id (UUID v4), emits `prelaunch.check-request` event
- * — Inngest pipeline picks it up і ~60s later інсертить row у prelaunch_checks
- * table. UI підписана на Realtime → toast + auto-refresh.
+ * — Inngest pipeline picks it up and ~60s later inserts a row in the
+ * prelaunch_checks table. UI subscribes to Realtime → toast + auto-refresh.
  */
 export async function triggerPrelaunchCheck(raw: unknown) {
   const parsed = PrelaunchCheckInputSchema.safeParse(raw);

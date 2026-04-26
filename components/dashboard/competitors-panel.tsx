@@ -24,7 +24,7 @@ export function CompetitorsPanel({ competitors }: { competitors: Competitor[] })
 
       {competitors.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
-          Жодного tracked brand. Seed defaults через <span className="font-mono text-xs">supabase/seed.sql</span>.
+          No tracked brands. Seed defaults via <span className="font-mono text-xs">supabase/seed.sql</span>.
         </p>
       ) : null}
 

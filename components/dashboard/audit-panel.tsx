@@ -46,7 +46,7 @@ export function AuditPanel({
           <p className="mt-1 text-xs text-muted-foreground">
             {latestRun?.finished_at
               ? `${formatRelative(latestRun.finished_at)} · ${stats?.duration_seconds ?? "?"}s`
-              : "ще не запускали"}
+              : "never run"}
           </p>
         </div>
         <RunRadarButton organizationId={organizationId} brandSlug={brandSlug} />

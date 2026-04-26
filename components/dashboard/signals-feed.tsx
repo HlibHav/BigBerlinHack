@@ -50,7 +50,7 @@ export function SignalsFeed({
 
   const filtered = filter === "all" ? sorted : sorted.filter((s) => s.severity === filter);
 
-  // У режимі "all" приховуємо med/low після 3 кожного — high завжди видні.
+  // In "all" mode hide med/low after 3 each — high signals are always visible.
   const preCapped =
     filter === "all" && !showAllLow
       ? (() => {
@@ -97,8 +97,8 @@ export function SignalsFeed({
       {filtered.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
           {signals.length === 0
-            ? "Жодного signal за останні 24h. Натисни «Run radar now» — W9 знайде competitor moves."
-            : `Жодного ${filter} severity за фільтром.`}
+            ? "No signals in the last 24h. Click «Run radar now» — W9 will find competitor moves."
+            : `No ${filter} severity matches the filter.`}
         </p>
       ) : (
         <>

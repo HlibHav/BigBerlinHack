@@ -22,7 +22,7 @@ const fns: Array<{ key: keyof RunsByFn; label: string; cron?: string }> = [
 ];
 
 function statusFor(run: Run): { dot: string; text: string } {
-  if (!run) return { dot: "bg-zinc-300 dark:bg-zinc-700", text: "ще не запускали" };
+  if (!run) return { dot: "bg-zinc-300 dark:bg-zinc-700", text: "never run" };
   if (run.ok === null) return { dot: "bg-amber-500 animate-pulse", text: "running…" };
   if (run.ok) return { dot: "bg-emerald-500", text: `✓ ${run.finished_at ? formatRelative(run.finished_at) : "—"}` };
   return { dot: "bg-red-500", text: `✗ ${run.finished_at ? formatRelative(run.finished_at) : "—"}` };

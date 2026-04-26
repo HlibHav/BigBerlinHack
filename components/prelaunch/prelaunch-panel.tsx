@@ -20,8 +20,8 @@ export function PrelaunchPanel({
       <header>
         <h2 className="text-lg font-semibold">Pre-Launch Check · {brandName}</h2>
         <p className="text-sm text-muted-foreground">
-          Перед launch-ом нової фрази перевір: чи фраза вже зайнята competitor-ами,
-          як LLMs її ранкують проти Peec landscape, і чи варто запускати взагалі.
+          Before launching a new phrase, check whether it&apos;s already taken by competitors,
+          how LLMs rank it against the Peec landscape, and whether it&apos;s worth launching at all.
           Pipeline: Peec baseline → Tavily availability + news (30d) → LLM panel
           (gpt-4o-mini + claude-haiku-4-5) → Claude Sonnet verdict.
         </p>
@@ -35,8 +35,7 @@ export function PrelaunchPanel({
         </h3>
         {checks.length === 0 ? (
           <p className="rounded-md border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-            Жодного pre-launch check ще не запускався. Введи draft phrasing вище —
-            отримаєш verdict за ~60s.
+            No pre-launch checks yet. Enter a draft phrasing above — you&apos;ll get a verdict in ~60s.
           </p>
         ) : (
           <ul className="space-y-2">

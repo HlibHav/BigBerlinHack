@@ -203,7 +203,7 @@ export const contentExpand = inngest.createFunction(
         ``,
         `TASK: Adapt as a 3-7 tweet X thread.`,
         `Output: body = full thread joined with double newlines, tweets = array of 3-7 strings`,
-        `each ≤280 chars що складають тред у логічному порядку.`,
+        `each ≤280 chars composing a thread in logical order.`,
       ].join("\n");
       const { object } = await generateObjectOpenAI({
         schema: XThreadLLMSchema,

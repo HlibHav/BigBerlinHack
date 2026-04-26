@@ -157,7 +157,7 @@ export function PrelaunchResultCard({ check }: { check: PrelaunchCheckRow }) {
 
           <section>
             <p className="font-semibold text-muted-foreground">
-              LLM panel ({check.llm_panel_results.length} prompts × 2 моделі) ·
+              LLM panel ({check.llm_panel_results.length} prompts × 2 models) ·
               mean mention {(meanMention * 100).toFixed(0)}%
             </p>
             <ul className="mt-1 space-y-1">

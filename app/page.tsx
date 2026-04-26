@@ -13,9 +13,9 @@ export default function HomePage() {
           <span className="text-muted-foreground">BBH closes the loop.</span>
         </h1>
         <p className="text-lg text-muted-foreground leading-relaxed">
-          Радар конкурентів (SLA 2h). Симулятор позиціонування. Multi-channel
-          counter-narratives на approve. Daily Slack brief. Все на даних з
-          Peec MCP + own intelligence layer.
+          Competitor radar (SLA 2h). Positioning simulator. Multi-channel
+          counter-narratives on approve. Daily Slack brief. All powered by
+          Peec MCP data + own intelligence layer.
         </p>
       </div>
 
@@ -24,17 +24,17 @@ export default function HomePage() {
           href={`/demo/${demoSlug}`}
           className="inline-flex items-center rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition"
         >
-          Відкрити demo dashboard →
+          Open demo dashboard →
         </Link>
       </div>
 
       <div className="border-t pt-6 text-sm text-muted-foreground space-y-2">
         <p>
           Demo brand: <code className="font-mono">{demoSlug}</code> (self-promo —
-          BBH моніторить себе vs Profound, BrandRank.ai, Mention).
+          BBH monitors itself vs Profound, BrandRank.ai, Mention).
         </p>
         <p>
-          Стек: Next.js 14 · Supabase · Inngest · <strong>Peec MCP</strong> ·
+          Stack: Next.js 14 · Supabase · Inngest · <strong>Peec MCP</strong> ·
           Tavily · OpenAI/Anthropic · Slack webhook.
         </p>
       </div>

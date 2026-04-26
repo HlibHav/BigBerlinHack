@@ -15,8 +15,8 @@ export function SendBriefButton({
   const [isPending, startTransition] = useTransition();
 
   function onClick() {
-    const t = toast.loading("Morning brief шлеться…", {
-      description: "W6′ збирає 24h signals + Peec pulse → Slack",
+    const t = toast.loading("Sending morning brief…", {
+      description: "W6′ aggregating 24h signals + Peec pulse → Slack",
     });
     startTransition(async () => {
       try {
@@ -25,14 +25,14 @@ export function SendBriefButton({
           brand_slug: brandSlug,
         });
         if (result.ok) {
-          toast.success("Brief event надіслано", {
+          toast.success("Brief event sent", {
             id: t,
-            description: "Перевір Slack #bbh-demo за ~30s",
+            description: "Check Slack #bbh-demo in ~30s",
           });
         } else {
-          toast.error("Не вдалося надіслати brief", {
+          toast.error("Failed to send brief", {
             id: t,
-            description: result.reason ?? "Inngest event API повернув помилку",
+            description: result.reason ?? "Inngest event API returned an error",
           });
         }
       } catch (err) {

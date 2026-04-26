@@ -33,7 +33,7 @@ export function CostPanel({ rows }: { rows: CostRow[] }) {
             Today&apos;s spend
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            External API calls (OpenAI / Anthropic / Tavily) у поточному UTC дні.
+            External API calls (OpenAI / Anthropic / Tavily) for the current UTC day.
           </p>
         </div>
         <div className="text-right">
@@ -46,7 +46,7 @@ export function CostPanel({ rows }: { rows: CostRow[] }) {
 
       {byService.size === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
-          Жодного external API call сьогодні. Тригни «Run radar now» — побачиш cost breakdown.
+          No external API calls today. Trigger «Run radar now» to see the cost breakdown.
         </p>
       ) : (
         <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">

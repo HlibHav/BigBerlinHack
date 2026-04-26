@@ -40,7 +40,7 @@ export function PrelaunchForm({
         if (result.ok) {
           toast.success("Check triggered", {
             id: t,
-            description: "Verdict з'явиться у history через ~60s",
+            description: "Verdict will appear in history in ~60s",
           });
           setPhrasing("");
           setCategoryHint("");
@@ -71,13 +71,13 @@ export function PrelaunchForm({
           htmlFor="prelaunch-phrasing"
           className="mb-1 block text-sm font-medium"
         >
-          Запропонована фраза для launch-у
+          Proposed phrasing for launch
         </label>
         <textarea
           id="prelaunch-phrasing"
           value={phrasing}
           onChange={(e) => setPhrasing(e.target.value)}
-          placeholder="Наприклад: AI-native CRM для стартапів які цінують швидкість"
+          placeholder="For example: AI-native CRM for startups that value speed"
           rows={4}
           maxLength={2000}
           className="w-full resize-y rounded-md border border-border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -85,10 +85,10 @@ export function PrelaunchForm({
         <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
           <span>
             {tooShort
-              ? "Мінімум 10 символів"
+              ? "Minimum 10 characters"
               : tooLong
-                ? "Максимум 2000 символів"
-                : "10-2000 символів"}
+                ? "Maximum 2000 characters"
+                : "10-2000 characters"}
           </span>
           <span>{phrasing.length} / 2000</span>
         </div>
@@ -99,14 +99,14 @@ export function PrelaunchForm({
           htmlFor="prelaunch-category"
           className="mb-1 block text-sm font-medium"
         >
-          Категорія / contекст{" "}
-          <span className="text-muted-foreground">(опціонально)</span>
+          Category / context{" "}
+          <span className="text-muted-foreground">(optional)</span>
         </label>
         <input
           id="prelaunch-category"
           value={categoryHint}
           onChange={(e) => setCategoryHint(e.target.value)}
-          placeholder="наприклад: B2B SaaS, modern CRM, vertical AI..."
+          placeholder="e.g. B2B SaaS, modern CRM, vertical AI..."
           maxLength={200}
           className="w-full rounded-md border border-border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
         />
@@ -114,8 +114,8 @@ export function PrelaunchForm({
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          Перевіримо: чи фраза вже зайнята competitor-ами + чи LLMs підхоплять її
-          у топ ranking.
+          We&apos;ll check: whether the phrase is already taken by competitors and whether
+          LLMs pick it up in their top ranking.
         </p>
         <Button type="submit" disabled={disabled}>
           {running ? "Running…" : "🚀 Run pre-launch check"}
@@ -126,8 +126,8 @@ export function PrelaunchForm({
         <div className="flex items-center gap-2 rounded bg-muted/40 p-2 text-xs text-muted-foreground">
           <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
           <span>
-            Tavily search + LLM panel scoring · ~60-90s · result з&apos;явиться у history
-            нижче (UI auto-refresh через Realtime)
+            Tavily search + LLM panel scoring · ~60-90s · result will appear in history
+            below (UI auto-refreshes via Realtime)
           </span>
         </div>
       ) : null}

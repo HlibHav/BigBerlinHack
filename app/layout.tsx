@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 export const metadata: Metadata = {
   title: "BBH — Brand Intelligence Agent",
   description:
-    "Що LLM кажуть про твій бренд просто зараз. Радар конкурентів, симулятор позиціонування, контр-наративи в один клік.",
+    "What LLMs are saying about your brand right now. Competitor radar, positioning simulator, counter-narratives in one click.",
 };
 
 export default function RootLayout({
@@ -14,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="uk" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground">
         {children}
         <Toaster />

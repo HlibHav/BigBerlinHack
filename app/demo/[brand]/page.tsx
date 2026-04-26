@@ -11,7 +11,6 @@ import { BrandHealthHero, BrandHealthMini } from "@/components/dashboard/brand-h
 import { RealtimeRefresher } from "@/components/dashboard/realtime-refresher";
 import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
 import { BackToTopFab } from "@/components/dashboard/back-to-top-fab";
-import { V2Footer } from "@/components/dashboard/v2-footer";
 import { PeecDataSourceBadge } from "@/components/dashboard/peec-data-source-badge";
 import { PrelaunchPanel } from "@/components/prelaunch/prelaunch-panel";
 import type { PrelaunchCheckRow } from "@/components/prelaunch/prelaunch-result-card";
@@ -45,7 +44,7 @@ export default async function DemoPage({
     notFound();
   }
 
-  // Cost ledger query potentially missing у generated types (cast handled у CostPanel side).
+  // Cost ledger query potentially missing in generated types (cast handled on the CostPanel side).
   const startOfDayUtc = new Date();
   startOfDayUtc.setUTCHours(0, 0, 0, 0);
 
@@ -112,7 +111,7 @@ export default async function DemoPage({
       .order("delivery_date", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    // cost_ledger may not exist у generated types yet — cast through any
+    // cost_ledger may not exist in generated types yet — cast through any
     (supabase as unknown as {
       from: (t: string) => {
         select: (s: string) => {
@@ -152,9 +151,9 @@ export default async function DemoPage({
     created_at: r.created_at,
   }));
 
-  // Brand health: до 90-day Peec history для self brand + tracked competitors.
-  // Snapshot bundled у serverless. Hero показує 7d sparkline by default;
-  // expanded TrendChart toggleable до 30/90d.
+  // Brand health: up to 90-day Peec history for self brand + tracked competitors.
+  // Snapshot bundled in serverless. Hero shows 7d sparkline by default;
+  // expanded TrendChart toggleable to 30/90d.
   type HealthReport = {
     date: string;
     visibility: number;
@@ -173,7 +172,7 @@ export default async function DemoPage({
       sentiment: r.sentiment,
       position: r.position,
     }));
-    // Pull histories для competitors (relationship !== "self") у тому ж organization.
+    // Pull histories for competitors (relationship !== "self") within the same organization.
     const competitorBrands = (competitors ?? []).filter(
       (c) => c.relationship !== "self" && c.is_active,
     );
@@ -190,10 +189,10 @@ export default async function DemoPage({
       }))
       .filter((c) => c.history.length > 0);
   } catch {
-    // peec-snapshot read failure — render empty state у hero
+    // peec-snapshot read failure — render empty state in hero
   }
 
-  // Maps для inline cohesion у DraftCard: signal context + simulator variants per draft
+  // Maps for inline cohesion in DraftCard: signal context + simulator variants per draft
   const allSignals = signals ?? [];
   const signalsById = new Map(allSignals.map((s) => [s.id, s]));
   const allNarrativeVariants = variants ?? [];
@@ -205,13 +204,13 @@ export default async function DemoPage({
     narrativeVariantsByDraft.set(v.seed_counter_draft_id, arr);
   }
   // Filter out legacy email content variants — channel deprecated 2026-04-25.
-  // Existing DB rows zaостаються (no migration), просто не render.
+  // Existing DB rows remain (no migration), they just don't render.
   const liveContentVariants = (contentVariants ?? []).filter(
     (v): v is typeof v & { channel: "blog" | "x_thread" | "linkedin" } =>
       v.channel === "blog" || v.channel === "x_thread" || v.channel === "linkedin",
   );
 
-  // Latest run per function — для PipelineStatus + AuditPanel
+  // Latest run per function — for PipelineStatus + AuditPanel
   const allRuns = recentRuns ?? [];
   function latestFor(fn: string): typeof allRuns[number] | null {
     return allRuns.find((r) => r.function_name === fn) ?? null;
@@ -237,7 +236,7 @@ export default async function DemoPage({
             </span>
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Що LLM сьогодні кажуть про {org.display_name}, які ходи роблять конкуренти, що відповісти.
+            What LLMs are saying about {org.display_name} today, what moves competitors are making, and how to respond.
           </p>
         </div>
         <PeecDataSourceBadge />
@@ -301,7 +300,6 @@ export default async function DemoPage({
         }}
       />
 
-      <V2Footer />
       <BackToTopFab />
     </main>
   );

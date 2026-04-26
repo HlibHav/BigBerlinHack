@@ -61,16 +61,16 @@ const ApproveWithVariantInput = z.object({
 });
 
 /**
- * Approve a counter-draft using one of the simulator variants як новий body.
- * Replaces draft.body з variant.body, marks status=approved, тригерить W7
- * expand. Дозволяє user'у вибрати ranked variant для multi-channel розширення
- * замість оригінального draft body.
+ * Approve a counter-draft using one of the simulator variants as the new body.
+ * Replaces draft.body with variant.body, marks status=approved, triggers W7
+ * expand. Lets the user pick a ranked variant for multi-channel expansion
+ * instead of the original draft body.
  */
 export async function approveWithVariant(raw: unknown) {
   const input = ApproveWithVariantInput.parse(raw);
   const supabase = createServiceClient();
 
-  // Fetch обраний variant body, перевіряємо org isolation.
+  // Fetch the chosen variant body, verify org isolation.
   const { data: variant, error: vErr } = await supabase
     .from("narrative_variants")
     .select("body")
@@ -122,9 +122,9 @@ const PublishDraftInput = z.object({
 
 /**
  * Publish-to-channels: closes the loop. counter_drafts.status='published' +
- * усі content_variants.status='sent' + sent_at set. Stepper доходить до 5-ї
- * stage (emerald). Guard: тільки status='approved' може перейти у 'published'
- * — інакше publish зробить no-op (eq("status", "approved") у where clause).
+ * all content_variants.status='sent' + sent_at set. Stepper reaches the 5th
+ * stage (emerald). Guard: only status='approved' can transition to 'published'
+ * — otherwise publish is a no-op (eq("status", "approved") in the where clause).
  */
 export async function publishDraft(raw: unknown) {
   const input = PublishDraftInput.parse(raw);

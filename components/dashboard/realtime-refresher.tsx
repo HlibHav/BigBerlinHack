@@ -22,12 +22,12 @@ const MIN_REFRESH_GAP_MS = 1500;
 
 /**
  * Hybrid auto-refresh:
- * - Realtime subscription: INSERT на ключових таблицях для цього org → debounced refresh.
- * - Polling fallback: кожні 20s викликає refresh навіть якщо Realtime не enabled
- *   на Supabase tables (потребує `alter publication supabase_realtime add table`).
- *   Гарантує auto-refresh для simulator/expand outputs незалежно від Supabase config.
+ * - Realtime subscription: INSERT on key tables for this org → debounced refresh.
+ * - Polling fallback: triggers refresh every 20s even if Realtime isn't enabled
+ *   on Supabase tables (requires `alter publication supabase_realtime add table`).
+ *   Guarantees auto-refresh for simulator/expand outputs regardless of Supabase config.
  *
- * Anonymous Supabase client; полагається на public-demo RLS policy.
+ * Anonymous Supabase client; relies on public-demo RLS policy.
  */
 export function RealtimeRefresher({ organizationId }: { organizationId: string }) {
   const router = useRouter();
@@ -47,7 +47,7 @@ export function RealtimeRefresher({ organizationId }: { organizationId: string }
       pending.current = setTimeout(() => {
         lastRefresh.current = Date.now();
         if (label) {
-          toast.info(`New ${label}`, { description: "UI оновлюється…", duration: 2500 });
+          toast.info(`New ${label}`, { description: "UI refreshing…", duration: 2500 });
         }
         router.refresh();
       }, delay);
@@ -80,14 +80,14 @@ export function RealtimeRefresher({ organizationId }: { organizationId: string }
         if (!hasShownConnect.current && status !== "CLOSED") {
           toast.warning("Live updates unavailable", {
             duration: 4000,
-            description: "Polling fallback active (refresh кожні 20s)",
+            description: "Polling fallback active (refresh every 20s)",
           });
         }
       }
     });
 
-    // Polling fallback — silent refresh кожні 20s. router.refresh() переmounts
-    // тільки змінені server components, не повний reload.
+    // Polling fallback — silent refresh every 20s. router.refresh() remounts
+    // only changed server components, not a full reload.
     const pollId = setInterval(() => doRefresh(), POLL_INTERVAL_MS);
 
     return () => {

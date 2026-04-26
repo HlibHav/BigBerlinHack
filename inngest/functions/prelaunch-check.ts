@@ -307,15 +307,15 @@ export async function __prelaunchCheckHandler({
           panelResults.length;
 
     const synthesisPrompt = [
-      `Ти аналітик BBH (Brand Intelligence). Винеси verdict для pre-launch перевірки фрази.`,
+      `You are a BBH (Brand Intelligence) analyst. Issue a verdict for the pre-launch phrasing check.`,
       ``,
-      `Бренд: ${context.brand_name}`,
-      `Категорія: ${category_hint ?? "(не задано)"}`,
+      `Brand: ${context.brand_name}`,
+      `Category: ${category_hint ?? "(not provided)"}`,
       ``,
-      `Запропонована фраза:`,
+      `Proposed phrasing:`,
       `"""${draft_phrasing}"""`,
       ``,
-      `Peec baseline (поточний стан):`,
+      `Peec baseline (current state):`,
       `- visibility: ${(context.baseline.visibility * 100).toFixed(1)}%`,
       `- position: ${context.baseline.position ?? "n/a"}`,
       `- sentiment: ${context.baseline.sentiment}`,
@@ -326,19 +326,19 @@ export async function __prelaunchCheckHandler({
         ? `- by: ${phraseAvailability.by.join(", ")}`
         : `- (no competitor clash)`,
       ``,
-      `Panel scoring (${panelResults.length} prompts × 2 моделі):`,
-      `- mean mention rate after reading фрази: ${(meanMention * 100).toFixed(1)}%`,
+      `Panel scoring (${panelResults.length} prompts × 2 models):`,
+      `- mean mention rate after reading the phrasing: ${(meanMention * 100).toFixed(1)}%`,
       ...panelResults.map(
         (p) =>
           `- "${p.prompt.slice(0, 80)}" → mention ${(p.mention_rate * 100).toFixed(0)}%, pos ${p.avg_position ?? "—"}`,
       ),
       ``,
-      `Винеси verdict — одне з трьох:`,
-      `- "clash": фраза вже зайнята competitor-ом у Tavily АБО panel mention rate помітно нижче за baseline.`,
-      `- "caution": panel mention rate близько baseline (±5%) АБО неоднозначний phrase availability.`,
-      `- "clear": фраза вільна, panel rate ≥ baseline + 5%.`,
+      `Issue a verdict — one of three:`,
+      `- "clash": the phrasing is already taken by a competitor in Tavily OR panel mention rate is notably below baseline.`,
+      `- "caution": panel mention rate is close to baseline (±5%) OR phrase availability is ambiguous.`,
+      `- "clear": phrasing is free, panel rate ≥ baseline + 5%.`,
       ``,
-      `Reasoning: 2-3 речення українською, посилайся на конкретні цифри і findings.`,
+      `Reasoning: 2-3 sentences in English, referencing concrete numbers and findings.`,
     ].join("\n");
 
     const { object } = await generateObjectAnthropic({

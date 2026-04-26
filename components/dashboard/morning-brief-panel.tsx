@@ -61,7 +61,7 @@ export function MorningBriefPanel({
         </div>
       ) : (
         <p className="mt-3 text-sm text-muted-foreground">
-          Жодного brief ще не відправляли. Тригни «Send brief now».
+          No briefs sent yet. Trigger «Send brief now».
         </p>
       )}
     </section>

@@ -217,7 +217,7 @@ export const competitorRadar = inngest.createFunction(
             severity: "low",
             sentiment: curr.sentiment,
             summary: `${comp.display_name} Peec baseline: visibility ${curr.visibility.toFixed(2)}, share-of-voice ${curr.share_of_voice.toFixed(2)}, sentiment ${curr.sentiment}, position ${curr.position ?? "n/a"}.`,
-            reasoning: `Single-day Peec snapshot — no prior day для delta detection. Refresh peec-snapshot.json через MCP щоб отримати real movement signals.`,
+            reasoning: `Single-day Peec snapshot — no prior day for delta detection. Refresh peec-snapshot.json via MCP to get real movement signals.`,
             evidence_refs: [sourceUrl],
             competitor_id: comp.id,
             position: curr.position,
@@ -317,8 +317,8 @@ export const competitorRadar = inngest.createFunction(
             source_url: sourceUrl,
             severity,
             sentiment: "neutral", // mention rate саме по собі не carry sentiment
-            summary: `${comp.display_name} mentioned у ${(mentionRate * 100).toFixed(0)}% of "${promptText}" chats (${mentionedChats.length}/${totalChats}).`,
-            reasoning: `Peec prompt-level signal: competitor ${comp.display_name} appears у ${mentionedChats.length} of ${totalChats} LLM responses до prompt "${promptText}". High mention_rate означає competitor owns this query category.`,
+            summary: `${comp.display_name} mentioned in ${(mentionRate * 100).toFixed(0)}% of "${promptText}" chats (${mentionedChats.length}/${totalChats}).`,
+            reasoning: `Peec prompt-level signal: competitor ${comp.display_name} appears in ${mentionedChats.length} of ${totalChats} LLM responses to the prompt "${promptText}". A high mention_rate means the competitor owns this query category.`,
             evidence_refs: [sourceUrl],
             competitor_id: comp.id,
             position: null,
@@ -549,7 +549,7 @@ export const competitorRadar = inngest.createFunction(
           ``,
           `Determine source_type (always "competitor" here), severity (low/med/high based on competitive impact —`,
           `socials launches and viral threads typically warrant med/high), sentiment (positive/neutral/negative),`,
-          `a 20-500 char summary, and ≥20 char reasoning. Mention the source channel у summary or reasoning.`,
+          `a 20-500 char summary, and ≥20 char reasoning. Mention the source channel in summary or reasoning.`,
           `evidence_refs MUST contain at least the source URL.`,
         ].join("\n");
 
@@ -634,7 +634,7 @@ export const competitorRadar = inngest.createFunction(
             : [signalId, c.source_url];
 
         const channelLine = c.source_channel
-          ? `Origin channel: ${c.source_channel} (${c.source_channel === "x" ? "Twitter/X thread" : c.source_channel === "linkedin" ? "LinkedIn post" : "news article"}). Lean toward responding на тому ж channel where natural.`
+          ? `Origin channel: ${c.source_channel} (${c.source_channel === "x" ? "Twitter/X thread" : c.source_channel === "linkedin" ? "LinkedIn post" : "news article"}). Lean toward responding on the same channel where natural.`
           : `Origin: Peec snapshot delta (no specific channel).`;
 
         const prompt = [

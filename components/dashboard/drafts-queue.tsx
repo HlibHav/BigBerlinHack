@@ -86,7 +86,7 @@ export function DraftsQueue({
   // "Pending" includes drafts in active workflow:
   // - status='draft' (waiting for review)
   // - status='approved' but no channel variants yet (W7 expand in progress)
-  // → keeps card on top while expanding, не stuck в decided list де user втратить.
+  // → keeps card on top while expanding, not stuck in decided list where the user loses it.
   const isExpanding = (id: string) =>
     (variantsByDraft.get(id) ?? []).length === 0;
 
@@ -107,8 +107,8 @@ export function DraftsQueue({
 
       {drafts.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
-          Жодного counter-draft. High-severity signals автоматично спавнять draft, або жми «Generate
-          counter-draft» на med signal.
+          No counter-drafts. High-severity signals auto-spawn drafts, or click «Generate
+          counter-draft» on a med signal.
         </p>
       ) : (
         <>

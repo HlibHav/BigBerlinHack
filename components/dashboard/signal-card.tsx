@@ -62,7 +62,7 @@ export function sourceMeta(sourceType: string): SourceMeta {
         emoji: "📁",
         label: "Internal",
         cls: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-        tooltip: "Manual entry або seed data",
+        tooltip: "Manual entry or seed data",
       };
   }
 }
