@@ -110,7 +110,12 @@ export default async function DemoPage({
       .from("brief_deliveries")
       .select("id, delivery_date, channel, recipient, status, summary_body, voice_script, sent_at, error_reason, created_at")
       .eq("organization_id", org.id)
+      // Secondary order on created_at desc — multiple briefs can share the
+      // same delivery_date (cron + manual «Send brief now»); without this
+      // tiebreaker postgres returns an arbitrary row, sometimes hiding the
+      // freshly-generated voice_script behind an older same-day brief.
       .order("delivery_date", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
     // cost_ledger may not exist in generated types yet — cast through any
