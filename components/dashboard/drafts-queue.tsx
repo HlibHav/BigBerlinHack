@@ -83,18 +83,24 @@ export function DraftsQueue({
   const [showAllPending, setShowAllPending] = useState(false);
   const [showDecided, setShowDecided] = useState(false);
 
-  // "Pending" includes drafts in active workflow:
-  // - status='draft' (waiting for review)
-  // - status='approved' but no channel variants yet (W7 expand in progress)
-  // → keeps card on top while expanding, not stuck in decided list where the user loses it.
-  const isExpanding = (id: string) =>
-    (variantsByDraft.get(id) ?? []).length === 0;
-
+  // "Pending" = anything still in the active workflow:
+  // - status='draft' — waiting for review
+  // - status='approved' — has been approved by reviewer; W7 is expanding OR
+  //   variants exist but haven't been pushed to channels yet (still actionable
+  //   via the «Publish to channels» CTA)
+  //
+  // "Decided" = the loop is closed:
+  // - status='published' — user clicked Publish, content_variants → sent
+  // - status='rejected'
+  //
+  // Per UX rule (2026-04-26): cards must NOT fall into the decided bucket as
+  // soon as the 3 channel variants are *generated*. They only move once the
+  // variants are explicitly *approved for distribution* (= published).
   const pending = drafts.filter(
-    (d) => d.status === "draft" || (d.status === "approved" && isExpanding(d.id)),
+    (d) => d.status === "draft" || d.status === "approved",
   );
   const decided = drafts.filter(
-    (d) => d.status === "rejected" || (d.status === "approved" && !isExpanding(d.id)) || d.status === "published",
+    (d) => d.status === "rejected" || d.status === "published",
   );
   const visiblePending = showAllPending ? pending : pending.slice(0, PENDING_DEFAULT);
   const hiddenPending = pending.length - visiblePending.length;
