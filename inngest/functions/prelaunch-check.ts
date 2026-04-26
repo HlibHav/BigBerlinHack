@@ -344,7 +344,7 @@ export async function __prelaunchCheckHandler({
     const { object } = await generateObjectAnthropic({
       schema: PrelaunchVerdictSynthesisSchema,
       prompt: synthesisPrompt,
-      model: "claude-sonnet-4-5",
+      model: "claude-sonnet-4-6",
       organization_id,
       operation: "prelaunch:synthesize",
       schemaName: "PrelaunchVerdictSynthesis",

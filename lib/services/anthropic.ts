@@ -7,7 +7,7 @@ import type { z } from "zod";
 import { recordCost } from "@/lib/services/cost";
 import { anthropicCost } from "@/lib/services/_pricing";
 
-export type AnthropicModel = "claude-sonnet-4-5" | "claude-haiku-4-5-20251001";
+export type AnthropicModel = "claude-sonnet-4-6" | "claude-sonnet-4-5" | "claude-haiku-4-5-20251001";
 
 export interface GenerateObjectAnthropicInput<T> {
   schema: z.Schema<T, z.ZodTypeDef, unknown>;
