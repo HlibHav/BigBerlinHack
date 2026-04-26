@@ -11,6 +11,7 @@ import { z } from "zod";
 import { formatRelative } from "@/lib/utils";
 
 import { CopyMarkdownButton } from "./copy-markdown-button";
+import { VoicePreviewButton } from "./voice-preview-button";
 
 /**
  * Wide BriefRow shape — what the route's server component selects from
@@ -124,12 +125,18 @@ export function PodcastBriefDetail({
                 <p className="mt-1 text-sm leading-relaxed">
                   {t.suggested_phrasing}
                 </p>
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  ↳ maps to AI prompt:{" "}
-                  <code className="rounded bg-secondary px-1 py-0.5">
-                    {t.maps_to_prompt}
-                  </code>
-                </p>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[10px] text-muted-foreground">
+                    ↳ maps to AI prompt:{" "}
+                    <code className="rounded bg-secondary px-1 py-0.5">
+                      {t.maps_to_prompt}
+                    </code>
+                  </p>
+                  <VoicePreviewButton
+                    brandSlug={brandSlug}
+                    text={t.suggested_phrasing}
+                  />
+                </div>
               </li>
             ))}
           </ol>

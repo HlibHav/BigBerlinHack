@@ -37,6 +37,10 @@ import {
 } from "@/lib/schemas/podcast-brief";
 import { generateObjectAnthropic } from "@/lib/services/anthropic";
 import { sumRunCost } from "@/lib/services/cost";
+import {
+  generateObjectGemini,
+  isGeminiAvailable,
+} from "@/lib/services/gemini";
 import { generateObjectOpenAI } from "@/lib/services/openai";
 import { judgePodcastBrief } from "@/lib/services/podcast-judge";
 import {
@@ -553,16 +557,31 @@ export async function __podcastPrepHandler({
       renderForbiddenListForPrompt(),
     ].join("\n");
 
-    const { object } = await generateObjectOpenAI<TopicsToAvoidResponse>({
-      schema: TopicsToAvoidResponseSchema,
-      prompt,
-      model: "gpt-4o",
-      organization_id,
-      operation: "podcast-prep:avoidance",
-      schemaName: "PodcastTopicsToAvoid",
-      temperature: 0.7,
-      run_id: runRow.id,
-    });
+    // Structural section — Gemini Flash when available (10x cheaper), gpt-4o
+    // fallback otherwise. Topics-to-avoid is a list of red-flag triggers
+    // with risk + pivot — quality bar is "comprehensive coverage", not
+    // "nuanced phrasing", which Gemini Flash handles well at fraction of cost.
+    const { object } = isGeminiAvailable()
+      ? await generateObjectGemini<TopicsToAvoidResponse>({
+          schema: TopicsToAvoidResponseSchema,
+          prompt,
+          model: "gemini-2.5-flash",
+          organization_id,
+          operation: "podcast-prep:avoidance",
+          schemaName: "PodcastTopicsToAvoid",
+          temperature: 0.7,
+          run_id: runRow.id,
+        })
+      : await generateObjectOpenAI<TopicsToAvoidResponse>({
+          schema: TopicsToAvoidResponseSchema,
+          prompt,
+          model: "gpt-4o",
+          organization_id,
+          operation: "podcast-prep:avoidance",
+          schemaName: "PodcastTopicsToAvoid",
+          temperature: 0.7,
+          run_id: runRow.id,
+        });
     return object.topics_to_avoid;
   });
 
@@ -594,17 +613,31 @@ export async function __podcastPrepHandler({
         renderForbiddenListForPrompt(),
       ].join("\n");
 
-      const { object } =
-        await generateObjectOpenAI<CompetitorMentionStrategyResponse>({
-          schema: CompetitorMentionStrategyResponseSchema,
-          prompt,
-          model: "gpt-4o",
-          organization_id,
-          operation: "podcast-prep:competitor-strategy",
-          schemaName: "PodcastCompetitorStrategy",
-          temperature: 0.7,
-          run_id: runRow.id,
-        });
+      // Structured tactical guidance — Gemini Flash when available, gpt-4o
+      // fallback. Competitor strategy maps to fixed slots per competitor
+      // (when_ok_to_name, when_use_generic, etc) — Gemini handles the
+      // structure at lower cost without sacrificing usefulness.
+      const { object } = isGeminiAvailable()
+        ? await generateObjectGemini<CompetitorMentionStrategyResponse>({
+            schema: CompetitorMentionStrategyResponseSchema,
+            prompt,
+            model: "gemini-2.5-flash",
+            organization_id,
+            operation: "podcast-prep:competitor-strategy",
+            schemaName: "PodcastCompetitorStrategy",
+            temperature: 0.7,
+            run_id: runRow.id,
+          })
+        : await generateObjectOpenAI<CompetitorMentionStrategyResponse>({
+            schema: CompetitorMentionStrategyResponseSchema,
+            prompt,
+            model: "gpt-4o",
+            organization_id,
+            operation: "podcast-prep:competitor-strategy",
+            schemaName: "PodcastCompetitorStrategy",
+            temperature: 0.7,
+            run_id: runRow.id,
+          });
       return object.competitor_mention_strategy;
     },
   );

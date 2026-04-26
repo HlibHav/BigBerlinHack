@@ -5,6 +5,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 export type CostService =
   | "openai"
   | "anthropic"
+  | "gemini"
+  | "gradium"
   | "peec"
   | "tavily"
   | "firecrawl"
