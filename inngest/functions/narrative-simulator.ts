@@ -6,7 +6,7 @@
 // Step graph (post-2026-04-26 refactor — see evals/reports/ baseline):
 //   0. create-run-row        — placeholder runs row so cost ledger can tag with run_id
 //   1. gather-context        — last 7d signals + active counter_drafts + Peec snapshot brand context
-//   2. generate-variants     — N PARALLEL gpt-4o-mini calls, one variant per sampled angle.
+//   2. generate-variants     — N PARALLEL gpt-4o calls, one variant per sampled angle.
 //                              Inlines the forbidden-phrase ban; re-rolls once if hits ≥ 2.
 //   2.5. phrase-availability — per-variant Tavily clash check (penalty multiplier later).
 //   3. judge-variants        — single claude-sonnet-4-5 call rates ALL variants on 4 dims.
@@ -343,7 +343,12 @@ export async function __narrativeSimulatorHandler({
         const { object } = await generateObjectOpenAI<VariantDraft>({
           schema: VariantDraftSchema,
           prompt: buildPrompt(angle, retryHint),
-          model: "gpt-4o-mini",
+          // Switched mini → 4o on 2026-04-26 because mini still emits
+          // "Imagine…" / "Have you ever…" openings and vague claims even
+          // with hard rules + forbidden ban (post-fix eval verdict was 2/5
+          // brand voice). gpt-4o is ~10× more expensive but follows hard
+          // rules far more reliably; cost per variant ≈ $0.008 vs $0.001.
+          model: "gpt-4o",
           organization_id,
           operation: "narrative-simulator:generate-angle",
           schemaName: "VariantDraft",
@@ -652,7 +657,7 @@ export async function __narrativeSimulatorHandler({
         duration_seconds: Math.round((Date.now() - startMs) / 1000),
         variants_generated: persistedCount,
         prompts_per_variant: 0,
-        models_used: ["gpt-4o-mini", "claude-sonnet-4-5"],
+        models_used: ["gpt-4o", "claude-sonnet-4-5"],
         cost_usd_cents,
       });
 

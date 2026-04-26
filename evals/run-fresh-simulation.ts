@@ -192,7 +192,7 @@ async function generateOnce(
   const { object } = await evalGenerateObjectOpenAI<VariantDraft>({
     schema: VariantDraftSchema,
     prompt: buildVariantPrompt(brand_name, brand_voice_pillars, angle, retryHint),
-    model: "gpt-4o-mini",
+    model: "gpt-4o",
     schemaName: "VariantDraft",
     temperature,
   });
