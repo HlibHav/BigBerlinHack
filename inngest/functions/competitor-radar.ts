@@ -290,10 +290,45 @@ export const competitorRadar = inngest.createFunction(
         chatsByPromptId.set(chat.prompt_id, arr);
       }
 
+      // Own brand — needed to detect Attio absence (gap signal).
+      const ownBrand = snapshot.brands.find((b) => b.is_own === true);
+
+      // Extract the first sentence containing competitorName from AI responses.
+      // messages are z.unknown() in schema so we cast to a minimal shape.
+      type Msg = { role: string; content: string };
+      function extractAiSnippet(
+        chats: typeof allChats,
+        competitorName: string,
+        maxLen = 200,
+      ): string | null {
+        const nameLower = competitorName.toLowerCase();
+        for (const chat of chats) {
+          const asst = (chat.messages as Msg[]).find((m) => m.role === "assistant");
+          if (!asst?.content) continue;
+          const sentence = asst.content
+            .split(/(?<=[.!?])\s+/)
+            .find((s: string) => s.toLowerCase().includes(nameLower));
+          const raw = sentence ?? asst.content;
+          return raw.length > maxLen ? `${raw.slice(0, maxLen)}…` : raw;
+        }
+        return null;
+      }
+
       for (const prompt of allPrompts) {
         const chatsForPrompt = chatsByPromptId.get(prompt.id) ?? [];
         if (chatsForPrompt.length === 0) continue;
         const totalChats = chatsForPrompt.length;
+
+        // Own brand mention count for this prompt — used for gap detection.
+        const ownMentionCount = ownBrand
+          ? chatsForPrompt.filter((c) =>
+              c.brands_mentioned.some(
+                (b) =>
+                  b.toLowerCase() === ownBrand.name.toLowerCase() ||
+                  b === ownBrand.id,
+              ),
+            ).length
+          : null;
 
         for (const comp of competitors) {
           const peecBrand = snapshot.brands.find(
@@ -314,25 +349,43 @@ export const competitorRadar = inngest.createFunction(
           if (mentionedChats.length === 0) continue;
 
           const mentionRate = mentionedChats.length / totalChats;
-          // Severity by competitor dominance — high mention_rate = competitor
-          // owns the query → high signal (Attio's gap is large).
-          // Thresholds tuned conservatively (0.7 high) щоб обмежити auto-draft
-          // fan-out у W9 high-severity loop (counter-draft generation cost).
+          // n < 3 capped at "low" — 1/1=100% is statistically meaningless and
+          // would incorrectly trigger auto-draft fan-out for a single sample.
           const severity: "low" | "med" | "high" =
-            mentionRate >= 0.7 ? "high" : mentionRate >= 0.4 ? "med" : "low";
+            totalChats < 3
+              ? "low"
+              : mentionRate >= 0.7
+              ? "high"
+              : mentionRate >= 0.4
+              ? "med"
+              : "low";
 
           const sourceUrl = `https://app.peec.ai/projects/${snapshot.project_id}/prompts/${prompt.id}`;
-          const promptText = prompt.text.length > 100
-            ? `${prompt.text.slice(0, 97)}...`
-            : prompt.text;
+          const promptText =
+            prompt.text.length > 100 ? `${prompt.text.slice(0, 97)}…` : prompt.text;
+
+          const snippet = extractAiSnippet(mentionedChats, comp.display_name);
+          const attioAbsent = ownMentionCount === 0;
+
+          const summaryParts = [
+            `${comp.display_name} dominates "${promptText}" (${mentionedChats.length}/${totalChats} AI responses).`,
+          ];
+          if (snippet) summaryParts.push(`AI said: "${snippet}"`);
+          if (attioAbsent) summaryParts.push(`Attio not mentioned.`);
+
+          const reasoningGap = attioAbsent
+            ? ` Attio had 0 mentions in this prompt — direct gap.`
+            : ownMentionCount !== null
+            ? ` Attio mentioned in ${ownMentionCount}/${totalChats} responses.`
+            : "";
 
           out.push({
             source_type: "peec_delta",
             source_url: sourceUrl,
             severity,
-            sentiment: "neutral", // mention rate саме по собі не carry sentiment
-            summary: `${comp.display_name} mentioned in ${(mentionRate * 100).toFixed(0)}% of "${promptText}" chats (${mentionedChats.length}/${totalChats}).`,
-            reasoning: `Peec prompt-level signal: competitor ${comp.display_name} appears in ${mentionedChats.length} of ${totalChats} LLM responses to the prompt "${promptText}". A high mention_rate means the competitor owns this query category.`,
+            sentiment: "neutral",
+            summary: summaryParts.join(" "),
+            reasoning: `Peec prompt-level signal: competitor ${comp.display_name} appears in ${mentionedChats.length} of ${totalChats} LLM responses to "${promptText}". High mention_rate means the competitor owns this query category.${reasoningGap}${totalChats < 3 ? " Low confidence — fewer than 3 chat samples." : ""}`,
             evidence_refs: [sourceUrl],
             competitor_id: comp.id,
             position: null,
