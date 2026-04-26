@@ -13,6 +13,7 @@ import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
 import { BackToTopFab } from "@/components/dashboard/back-to-top-fab";
 import { PeecDataSourceBadge } from "@/components/dashboard/peec-data-source-badge";
 import { PrelaunchPanel } from "@/components/prelaunch/prelaunch-panel";
+import { PodcastPrepPanel } from "@/components/dashboard/podcast-prep-panel";
 import type { PrelaunchCheckRow } from "@/components/prelaunch/prelaunch-result-card";
 import type {
   PrelaunchBaseline,
@@ -59,6 +60,7 @@ export default async function DemoPage({
     { data: brief },
     { data: costRows },
     { data: prelaunchChecks },
+    { data: podcastBriefs },
   ] = await Promise.all([
     supabase
       .from("runs")
@@ -129,6 +131,14 @@ export default async function DemoPage({
       .from("prelaunch_checks")
       .select(
         "id, draft_phrasing, category_hint, verdict, verdict_reasoning, baseline, phrase_availability, llm_panel_results, cost_usd_cents, evidence_refs, created_at"
+      )
+      .eq("organization_id", org.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("podcast_briefs")
+      .select(
+        "id, podcast_name, host_name, episode_topic, scheduled_date, judge_score, created_at",
       )
       .eq("organization_id", org.id)
       .order("created_at", { ascending: false })
@@ -295,6 +305,22 @@ export default async function DemoPage({
               brandSlug={org.slug}
               brandName={org.display_name}
               checks={prelaunchRows}
+            />
+          ),
+          "podcast-prep": (
+            <PodcastPrepPanel
+              briefs={(podcastBriefs ?? []).map((b) => ({
+                id: b.id,
+                podcast_name: b.podcast_name,
+                host_name: b.host_name,
+                episode_topic: b.episode_topic,
+                scheduled_date: b.scheduled_date,
+                judge_score: b.judge_score,
+                created_at: b.created_at,
+              }))}
+              organizationId={org.id}
+              brandSlug={org.slug}
+              brandName={org.display_name}
             />
           ),
         }}
