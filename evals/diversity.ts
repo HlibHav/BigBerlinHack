@@ -4,70 +4,16 @@
 // human spotted in the screenshot: every variant opens with "competitor X
 // claims Y, but..." and pivots to "At Attio, we [pillar word]...".
 
+import {
+  AI_TROPE_PHRASES,
+  FORBIDDEN_WORDS,
+} from "@/lib/brand/forbidden-phrases";
+
 import type { DiversityReport, EvalVariant } from "./lib/types";
 
-// Forbidden phrases — sourced from the user's global anti-AI style rules
-// (~/.claude/CLAUDE.md "leverage / streamline / empower") plus the standard
-// LLM-trope dictionary that calibrates against Sonnet/Haiku/GPT outputs.
-const FORBIDDEN_PHRASES = [
-  "leverage",
-  "leveraging",
-  "streamline",
-  "streamlining",
-  "empower",
-  "empowering",
-  "empowers",
-  "delve",
-  "delves",
-  "delving",
-  "robust",
-  "seamless",
-  "seamlessly",
-  "navigate",
-  "navigating",
-  "tapestry",
-  "beacon",
-  "synergy",
-  "synergies",
-  "synergistic",
-  "unleash",
-  "unleashes",
-  "unleashing",
-  "revolutioniz", // catches revolutionize / revolutionizing / revolutionizes
-  "game-chang", // catches game-changer / game-changing
-  "cutting-edge",
-  "best-in-class",
-  "world-class",
-  "next-level",
-  "stand out from the crowd",
-  "in today's fast-paced",
-  "in the ever-evolving",
-];
-
-// AI sales-pitch templates that appear when a model is asked to "write
-// brand-voiced counter-narrative" without diversity hints. These all show up
-// in the screenshot fixture.
-const AI_TROPE_PHRASES = [
-  "we believe",
-  "we focus on",
-  "we prioritize",
-  "we empower",
-  "we deliver",
-  "settle for",
-  "settling for",
-  "the status quo",
-  "the truth is",
-  "build the future",
-  "build your business",
-  "with confidence",
-  "true power",
-  "make every interaction",
-  "meaningful and impactful",
-  "elevate your",
-  "thrive with it",
-  "in a landscape where",
-  "rather than settling",
-];
+// Forbidden vocabulary is the SSOT in lib/brand/forbidden-phrases — both the
+// W5 simulator (for prompt injection + post-filter) and this Layer 1 metric
+// (for hit-detection) consume the same list. Keep changes there, not here.
 
 // Tokenise to lowercase word array (alphanumerics only). Drops punctuation so
 // trigrams ignore commas / apostrophes that would otherwise inflate diversity.
@@ -94,7 +40,7 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   return intersect / (a.size + b.size - intersect);
 }
 
-function findMatches(body: string, dictionary: string[]): string[] {
+function findMatches(body: string, dictionary: readonly string[]): string[] {
   const lower = body.toLowerCase();
   const hits = new Set<string>();
   for (const phrase of dictionary) {
@@ -132,7 +78,7 @@ export function computeDiversity(variants: EvalVariant[]): DiversityReport {
   // 3. Forbidden phrase scan (per variant).
   const forbidden_hits = variants.map((v, i) => ({
     variant_idx: i,
-    matches: findMatches(v.body, FORBIDDEN_PHRASES),
+    matches: findMatches(v.body, FORBIDDEN_WORDS),
   }));
 
   // 4. AI trope scan (per variant).
