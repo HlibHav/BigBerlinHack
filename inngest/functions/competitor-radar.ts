@@ -13,6 +13,7 @@ import { SignalSchema } from "@/lib/schemas/signal";
 import { generateObjectAnthropic } from "@/lib/services/anthropic";
 import { sumRunCost } from "@/lib/services/cost";
 import {
+  buildPeecCompetitorContext,
   getBrandReportHistory,
   loadPeecSnapshot,
 } from "@/lib/services/peec-snapshot";
@@ -183,6 +184,19 @@ export const competitorRadar = inngest.createFunction(
     const snapshot = (await step.run("peec-load-snapshot", async () => {
       return (await loadPeecSnapshot()) as PeecSnapshotFile;
     })) as PeecSnapshotFile;
+
+    // 2a. Build Peec context per competitor — pure in-memory derive, no I/O.
+    //     Used downstream as cross-source enrichment: the Tavily classifier
+    //     and Tavily-side counter-draft generation get the competitor's
+    //     current Peec footprint so they don't reason about a news article
+    //     in isolation. Loud headline + flat Peec ⇒ noise; mild headline +
+    //     climbing Peec ⇒ real movement. Zero extra API cost — snapshot is
+    //     already in memory from step 2.
+    const peecContextByCompetitorId = new Map<string, string>();
+    for (const comp of competitors) {
+      const ctx = buildPeecCompetitorContext(snapshot, comp.display_name);
+      if (ctx) peecContextByCompetitorId.set(comp.id, ctx);
+    }
 
     // 3. Peec delta detect ----------------------------------------------------
     //    Two branches per competitor:
@@ -557,7 +571,30 @@ export const competitorRadar = inngest.createFunction(
             : t.source_channel === "linkedin"
               ? "LinkedIn post"
               : "News article";
-        const prompt = [
+
+        // Cross-source severity calibration. The Tavily LLM otherwise reads
+        // an article in isolation and picks severity from headline tone —
+        // which over-rates loud PR and under-rates real momentum. We inject
+        // the competitor's current Peec footprint and tell the model to
+        // weight severity in light of real AI-engine traction.
+        const peecContext = peecContextByCompetitorId.get(t.competitor_id);
+        const peecBlock = peecContext
+          ? [
+              ``,
+              `--- Cross-source context: Peec brand-engine state ---`,
+              peecContext,
+              `--- end context ---`,
+              ``,
+              `Severity calibration rule: weight severity by combining the article's competitive`,
+              `impact with the Peec footprint above. Loud headline + flat / declining Peec metrics`,
+              `usually means PR noise, not material movement — bias toward "low" or "med". Mild`,
+              `headline + climbing Peec visibility/share-of-voice or improving (lower-number) avg`,
+              `position usually means a real, retrievable shift — bias toward "med" or "high".`,
+              `Sentiment flip in Peec is itself a high-severity signal regardless of article tone.`,
+            ].join("\n")
+          : "";
+
+        const promptLines: string[] = [
           `Classify this competitor signal for brand-intelligence purposes.`,
           ``,
           `Source channel: ${t.source_channel} (${channelHint})`,
@@ -565,12 +602,21 @@ export const competitorRadar = inngest.createFunction(
           `URL: ${t.url}`,
           `Title: ${t.title ?? "(no title)"}`,
           `Excerpt: ${(t.content ?? "").slice(0, 1200)}`,
+        ];
+        if (peecBlock) promptLines.push(peecBlock);
+        promptLines.push(
           ``,
           `Determine source_type (always "competitor" here), severity (low/med/high based on competitive impact —`,
           `socials launches and viral threads typically warrant med/high), sentiment (positive/neutral/negative),`,
           `a 20-500 char summary, and ≥20 char reasoning. Mention the source channel in summary or reasoning.`,
-          `evidence_refs MUST contain at least the source URL.`,
-        ].join("\n");
+        );
+        if (peecContext) {
+          promptLines.push(
+            `If Peec context informed the severity decision, reference it in your reasoning (e.g. "loud headline but flat Peec visibility").`,
+          );
+        }
+        promptLines.push(`evidence_refs MUST contain at least the source URL.`);
+        const prompt = promptLines.join("\n");
 
         const { object } = await generateObjectAnthropic({
           schema: SignalSchema,
@@ -656,18 +702,47 @@ export const competitorRadar = inngest.createFunction(
           ? `Origin channel: ${c.source_channel} (${c.source_channel === "x" ? "Twitter/X thread" : c.source_channel === "linkedin" ? "LinkedIn post" : "news article"}). Lean toward responding on the same channel where natural.`
           : `Origin: Peec snapshot delta (no specific channel).`;
 
-        const prompt = [
+        // Cross-source enrichment for Tavily-sourced drafts: inject the
+        // competitor's Peec footprint so the counter body can reference
+        // concrete brand-engine numerics ("Salesforce visibility climbed
+        // 12 pp this week, but our take is...") instead of generic
+        // brand-voice prose. Skipped for peec_delta drafts — those already
+        // have Peec context inside their summary/reasoning.
+        const peecContext =
+          c.source_type === "competitor"
+            ? c.competitor_id
+              ? peecContextByCompetitorId.get(c.competitor_id) ?? null
+              : null
+            : null;
+        const peecDraftBlock = peecContext
+          ? [
+              ``,
+              `--- Cross-source context: Peec brand-engine state for this competitor ---`,
+              peecContext,
+              `--- end context ---`,
+              ``,
+              `If the Peec metrics tell a different story than the article (e.g. loud launch but`,
+              `flat brand-engine visibility), the counter-narrative can lean into that gap.`,
+              `Where appropriate, reference one concrete Peec numeric to ground the counter.`,
+            ].join("\n")
+          : "";
+
+        const promptLines: string[] = [
           `Draft a counter-narrative reaction to the following high-severity competitor signal.`,
           ``,
           `Signal summary: ${c.summary}`,
           `Reasoning: ${c.reasoning}`,
           `Source URL: ${c.source_url}`,
           channelLine,
+        ];
+        if (peecDraftBlock) promptLines.push(peecDraftBlock);
+        promptLines.push(
           ``,
           `Output: 50-2000 char body, channel_hint (x|linkedin|blog|multi), tone_pillar from`,
           `the brand voice (e.g. "confident-builder"), reasoning ≥20 chars explaining the angle,`,
           `and evidence_refs MUST equal: ${JSON.stringify(evidenceRefs)}.`,
-        ].join("\n");
+        );
+        const prompt = promptLines.join("\n");
 
         const { object } = await generateObjectAnthropic({
           schema: CounterDraftSchema,

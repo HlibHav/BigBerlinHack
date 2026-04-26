@@ -4,6 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import {
+  buildPeecCompetitorContext,
   extractChatExchange,
   getCitationGaps,
   getOwnBrand,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/services/peec-snapshot";
 import type {
   PeecBrand,
+  PeecBrandReportRow,
   PeecChat,
   PeecSnapshotFile,
   PeecUrlReportRow,
@@ -182,5 +184,116 @@ describe("extractChatExchange", () => {
       sources: [],
     };
     expect(extractChatExchange(chat)).toEqual({ user: "", assistant: "" });
+  });
+});
+
+describe("buildPeecCompetitorContext", () => {
+  function reportRow(
+    id: string,
+    name: string,
+    date: string,
+    overrides: Partial<PeecBrandReportRow> = {},
+  ): PeecBrandReportRow {
+    return {
+      brand_id: id,
+      brand_name: name,
+      date,
+      visibility: 0.4,
+      mention_count: 1,
+      share_of_voice: 0.3,
+      sentiment: "positive",
+      position: 2,
+      ...overrides,
+    };
+  }
+
+  it("returns null when no brand_report rows match", () => {
+    expect(buildPeecCompetitorContext(baseSnapshot, "Pipedrive")).toBeNull();
+  });
+
+  it("emits single-day fallback when only one report exists", () => {
+    const ctx = buildPeecCompetitorContext(baseSnapshot, "Attio");
+    expect(ctx).not.toBeNull();
+    expect(ctx).toContain("Latest Peec snapshot");
+    expect(ctx).toContain("visibility: 40%");
+    expect(ctx).toContain("Day-over-day delta: n/a");
+  });
+
+  it("computes day-over-day delta when ≥2 reports exist", () => {
+    const snap: PeecSnapshotFile = {
+      ...baseSnapshot,
+      brand_reports: [
+        reportRow("kw_sf", "Salesforce", "2026-04-26", {
+          visibility: 0.5,
+          position: 1.5,
+          sentiment: "positive",
+        }),
+        reportRow("kw_sf", "Salesforce", "2026-04-25", {
+          visibility: 0.4,
+          position: 2.0,
+          sentiment: "neutral",
+        }),
+      ],
+      brands: [...baseSnapshot.brands, brand("kw_sf", "Salesforce")],
+    };
+    const ctx = buildPeecCompetitorContext(snap, "Salesforce");
+    expect(ctx).toContain("visibility ▲ 10.0 pp");
+    expect(ctx).toContain("position Δ -0.50");
+    expect(ctx).toContain("sentiment flipped neutral → positive");
+  });
+
+  it("aggregates mention rate across all chats when chats exist", () => {
+    const snap: PeecSnapshotFile = {
+      ...baseSnapshot,
+      brands: [...baseSnapshot.brands, brand("kw_sf", "Salesforce")],
+      brand_reports: [reportRow("kw_sf", "Salesforce", "2026-04-26")],
+      chats: [
+        {
+          id: "c1",
+          prompt_id: "p1",
+          model_id: "openai-scraper",
+          date: "2026-04-26T08:00:00.000Z",
+          messages: [],
+          brands_mentioned: ["Salesforce"],
+          sources: [],
+        },
+        {
+          id: "c2",
+          prompt_id: "p2",
+          model_id: "openai-scraper",
+          date: "2026-04-26T09:00:00.000Z",
+          messages: [],
+          brands_mentioned: ["HubSpot"],
+          sources: [],
+        },
+      ],
+    };
+    const ctx = buildPeecCompetitorContext(snap, "Salesforce");
+    expect(ctx).toContain("AI-engine prompt dominance: mentioned in 1/2");
+    expect(ctx).toContain("(50%)");
+  });
+
+  it("matches brand id in chats.brands_mentioned (Peec MCP brand-id form)", () => {
+    const snap: PeecSnapshotFile = {
+      ...baseSnapshot,
+      brands: [...baseSnapshot.brands, brand("kw_sf", "Salesforce")],
+      brand_reports: [reportRow("kw_sf", "Salesforce", "2026-04-26")],
+      chats: [
+        {
+          id: "c1",
+          prompt_id: "p1",
+          model_id: "openai-scraper",
+          date: "2026-04-26T08:00:00.000Z",
+          messages: [],
+          // Some Peec MCP versions return brand IDs instead of display names —
+          // the helper must match either form.
+          brands_mentioned: ["kw_sf"],
+          sources: [],
+        },
+      ],
+    };
+    const ctx = buildPeecCompetitorContext(snap, "Salesforce");
+    expect(ctx).toContain("mentioned in 1/1");
+    expect(ctx).toContain("(100%)");
   });
 });
