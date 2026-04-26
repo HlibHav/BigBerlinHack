@@ -51,6 +51,15 @@ export const PrelaunchCheckRequest = z.object({
 });
 export type PrelaunchCheckRequest = z.infer<typeof PrelaunchCheckRequest>;
 
+// ACTIVE (post-hackathon) — W11 podcast prep. Founder submits podcast metadata,
+// pipeline produces retrieval-optimized brief (talking points, anticipated Q&A,
+// brand-drop moments, topics to avoid, competitor mention strategy + judge verdict).
+// Schema lives у lib/schemas/podcast-brief.ts (SSOT для всього W11). Тут тільки
+// re-export для events registry consistency.
+import { PodcastPrepRequestSchema } from "@/lib/schemas/podcast-brief";
+export { PodcastPrepRequestSchema as PodcastPrepRequest } from "@/lib/schemas/podcast-brief";
+export type { PodcastPrepRequest as PodcastPrepRequestType } from "@/lib/schemas/podcast-brief";
+
 // [DEFERRED — W4 widget cut by hackathon scope, schema preserved for post-hackathon]
 export const WidgetRegenerate = z.object({
   organization_id: z.string().uuid(),
@@ -77,6 +86,7 @@ export const events = {
   "narrative.simulate-request": { data: NarrativeSimulateRequest },
   "content.expand-request": { data: ContentExpandRequest },
   "prelaunch.check-request": { data: PrelaunchCheckRequest },
+  "podcast.prep-request": { data: PodcastPrepRequestSchema },
   "widget.regenerate": { data: WidgetRegenerate },
 } as const;
 

@@ -23,6 +23,7 @@ describe("events registry", () => {
         "morning-brief.delivered",
         "morning-brief.tick",
         "narrative.simulate-request",
+        "podcast.prep-request",
         "prelaunch.check-request",
         "widget.regenerate",
       ].sort(),

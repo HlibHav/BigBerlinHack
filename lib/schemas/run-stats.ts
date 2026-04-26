@@ -1,7 +1,10 @@
 // Aggregated per-run audit stats. Per CONTRACTS.md §2.8.
 // Discriminated union by function_name. Stored у runs.stats jsonb.
-// Hackathon додано: ContentExpandRunStats (W7), MorningBriefRunStats (W6′).
+// Hackathon додано: ContentExpandRunStats (W7), MorningBriefRunStats (W6′),
+// PodcastPrepRunStats (W11, post-hackathon).
 import { z } from "zod";
+
+import { PodcastPrepRunStatsSchema } from "./podcast-brief";
 
 export const RadarRunStatsSchema = z.object({
   function_name: z.literal("competitor-radar"),
@@ -56,5 +59,11 @@ export const RunStatsSchema = z.discriminatedUnion("function_name", [
   SimulatorRunStatsSchema,
   ContentExpandRunStatsSchema,
   MorningBriefRunStatsSchema,
+  PodcastPrepRunStatsSchema,
 ]);
 export type RunStats = z.infer<typeof RunStatsSchema>;
+
+// Re-export so consumers can import directly from run-stats if they prefer one
+// barrel for all run-related schemas.
+export { PodcastPrepRunStatsSchema };
+export type { PodcastPrepRunStats } from "./podcast-brief";
