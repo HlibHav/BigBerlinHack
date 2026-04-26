@@ -256,6 +256,92 @@ export const competitorRadar = inngest.createFunction(
       return out;
     })) as SignalCandidate[];
 
+    // 3a. Peec per-prompt signals -------------------------------------------
+    //    For each Peec prompt × competitor — обчислити mention_rate з
+    //    snapshot.chats з matching prompt_id. Якщо competitor згаданий хоча б
+    //    у одному chat — emit signal. Severity proportional to mention_rate
+    //    (high when competitor dominates query, indicating Attio's own gap).
+    //    Source URL deeplinks до Peec project prompt page для evidence.
+    //    Розширюється autoматично коли peec-snapshot.json content updated
+    //    (more prompts → more signals, без code change).
+    const peecPromptCandidates = (await step.run("peec-per-prompt-signals", async () => {
+      const out: SignalCandidate[] = [];
+      const allChats = snapshot.chats ?? [];
+      const allPrompts = snapshot.prompts ?? [];
+      // Pre-build prompt → chats lookup для O(1) per prompt.
+      const chatsByPromptId = new Map<string, typeof allChats>();
+      for (const chat of allChats) {
+        const arr = chatsByPromptId.get(chat.prompt_id) ?? [];
+        arr.push(chat);
+        chatsByPromptId.set(chat.prompt_id, arr);
+      }
+
+      for (const prompt of allPrompts) {
+        const chatsForPrompt = chatsByPromptId.get(prompt.id) ?? [];
+        if (chatsForPrompt.length === 0) continue;
+        const totalChats = chatsForPrompt.length;
+
+        for (const comp of competitors) {
+          const peecBrand = snapshot.brands.find(
+            (b) => b.name.toLowerCase() === comp.display_name.toLowerCase(),
+          );
+          if (!peecBrand) continue;
+          const brandNameLower = comp.display_name.toLowerCase();
+
+          // Match by brand name OR brand id у brands_mentioned (snapshot uses
+          // mixed identifiers depending on Peec MCP version).
+          const mentionedChats = chatsForPrompt.filter((c) =>
+            c.brands_mentioned.some(
+              (b) =>
+                b.toLowerCase() === brandNameLower ||
+                b === peecBrand.id,
+            ),
+          );
+          if (mentionedChats.length === 0) continue;
+
+          const mentionRate = mentionedChats.length / totalChats;
+          // Severity by competitor dominance — high mention_rate = competitor
+          // owns the query → high signal (Attio's gap is large).
+          // Thresholds tuned conservatively (0.7 high) щоб обмежити auto-draft
+          // fan-out у W9 high-severity loop (counter-draft generation cost).
+          const severity: "low" | "med" | "high" =
+            mentionRate >= 0.7 ? "high" : mentionRate >= 0.4 ? "med" : "low";
+
+          const sourceUrl = `https://app.peec.ai/projects/${snapshot.project_id}/prompts/${prompt.id}`;
+          const promptText = prompt.text.length > 100
+            ? `${prompt.text.slice(0, 97)}...`
+            : prompt.text;
+
+          out.push({
+            source_type: "peec_delta",
+            source_url: sourceUrl,
+            severity,
+            sentiment: "neutral", // mention rate саме по собі не carry sentiment
+            summary: `${comp.display_name} mentioned у ${(mentionRate * 100).toFixed(0)}% of "${promptText}" chats (${mentionedChats.length}/${totalChats}).`,
+            reasoning: `Peec prompt-level signal: competitor ${comp.display_name} appears у ${mentionedChats.length} of ${totalChats} LLM responses до prompt "${promptText}". High mention_rate означає competitor owns this query category.`,
+            evidence_refs: [sourceUrl],
+            competitor_id: comp.id,
+            position: null,
+            peec_meta: {
+              captured_at: snapshot.captured_at,
+              project_id: snapshot.project_id,
+              brand_id: peecBrand.id,
+            },
+          });
+        }
+      }
+      return out;
+    })) as SignalCandidate[];
+
+    // Combined pool — both delta/baseline (step 3) і per-prompt (step 3a) signals
+    // flow through same dedup/persist downstream. Source type залишається
+    // "peec_delta" тому UI tag'ить як 📊 Peec. Build new array замість мутації
+    // step.run result (Inngest replay-safe pattern).
+    const allPeecCandidates: SignalCandidate[] = [
+      ...peecCandidates,
+      ...peecPromptCandidates,
+    ];
+
     // 4. Tavily supplement (3 parallel queries: news + x + linkedin) ----------
     //    Per (competitor, term) we fan out to 3 channels — news index (last 2d),
     //    Twitter/X domain restrict, LinkedIn domain restrict. Each result is
@@ -414,7 +500,7 @@ export const competitorRadar = inngest.createFunction(
         }
       }
 
-      const dedupedPeec = peecCandidates.filter(
+      const dedupedPeec = allPeecCandidates.filter(
         (p) => !existingPeecKeys.has(`${p.source_url}|${p.summary}`),
       );
 
