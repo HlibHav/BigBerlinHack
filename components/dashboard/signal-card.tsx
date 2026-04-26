@@ -74,12 +74,14 @@ export function SignalCard({
   organizationId,
   brandSlug,
   aiChats,
+  aiChatsScope,
 }: {
   signal: Signal;
   brandName: string;
   organizationId: string;
   brandSlug: string;
   aiChats?: AiChat[];
+  aiChatsScope?: "prompt" | "brand";
 }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -173,7 +175,11 @@ export function SignalCard({
             ))}
           </p>
           {aiChats && aiChats.length > 0 ? (
-            <SignalAiEvidence chats={aiChats} brandName={brandName} />
+            <SignalAiEvidence
+              chats={aiChats}
+              brandName={brandName}
+              scope={aiChatsScope}
+            />
           ) : null}
         </div>
       ) : null}

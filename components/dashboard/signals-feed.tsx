@@ -66,11 +66,54 @@ export function SignalsFeed({
     return map;
   }, [aiChats]);
 
-  function chatsForSignal(s: Signal): AiChat[] {
+  // Per-prompt bucket — for peec-per-prompt signals whose source_url encodes
+  // /prompts/{prompt_id}. These signals fire from a SPECIFIC Peec prompt
+  // (e.g. "Salesforce alternatives for fast-growing teams") and the evidence
+  // drawer should show *that prompt's* chats, not every chat globally
+  // mentioning the brand. Without this two signals about HubSpot in two
+  // different prompts both ended up showing the same generic chat list.
+  const chatsByPromptId = useMemo(() => {
+    const map = new Map<string, AiChat[]>();
+    for (const chat of aiChats) {
+      const arr = map.get(chat.prompt_id) ?? [];
+      arr.push(chat);
+      map.set(chat.prompt_id, arr);
+    }
+    for (const arr of map.values()) {
+      arr.sort((a, b) => (a.date < b.date ? 1 : -1));
+    }
+    return map;
+  }, [aiChats]);
+
+  /**
+   * Extract the Peec prompt_id encoded in a per-prompt signal's source_url.
+   * Returns null for delta signals (whose URL points to a brand page) and
+   * for Tavily signals (real article URLs).
+   */
+  function extractPromptId(sourceUrl: string | null | undefined): string | null {
+    if (!sourceUrl) return null;
+    const m = sourceUrl.match(/\/prompts\/([^/?#]+)/);
+    return m?.[1] ?? null;
+  }
+
+  function chatsForSignal(s: Signal): {
+    chats: AiChat[];
+    scope: "prompt" | "brand";
+  } {
+    const promptId = extractPromptId(s.source_url);
+    if (promptId) {
+      const promptChats = chatsByPromptId.get(promptId);
+      if (promptChats && promptChats.length > 0) {
+        return { chats: promptChats, scope: "prompt" };
+      }
+    }
     const targetBrand = s.competitor_id
       ? competitorMap.get(s.competitor_id) ?? ownBrandName
       : ownBrandName;
-    return chatsByBrand.get(targetBrand.toLowerCase()) ?? [];
+    return {
+      chats: chatsByBrand.get(targetBrand.toLowerCase()) ?? [],
+      scope: "brand",
+    };
   }
 
   const sorted = [...signals].sort((a, b) => {
@@ -134,18 +177,24 @@ export function SignalsFeed({
       ) : (
         <>
           <ul className="mt-3 space-y-2">
-            {visible.map((s) => (
-              <SignalCard
-                key={s.id}
-                signal={s}
-                brandName={
-                  s.competitor_id ? competitorMap.get(s.competitor_id) ?? ownBrandName : ownBrandName
-                }
-                organizationId={organizationId}
-                brandSlug={brandSlug}
-                aiChats={chatsForSignal(s)}
-              />
-            ))}
+            {visible.map((s) => {
+              const evidence = chatsForSignal(s);
+              return (
+                <SignalCard
+                  key={s.id}
+                  signal={s}
+                  brandName={
+                    s.competitor_id
+                      ? competitorMap.get(s.competitor_id) ?? ownBrandName
+                      : ownBrandName
+                  }
+                  organizationId={organizationId}
+                  brandSlug={brandSlug}
+                  aiChats={evidence.chats}
+                  aiChatsScope={evidence.scope}
+                />
+              );
+            })}
           </ul>
           {remaining > 0 ? (
             <button

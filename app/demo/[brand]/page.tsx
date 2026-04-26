@@ -219,10 +219,14 @@ export default async function DemoPage({
     // Citation gaps — URLs that cite competitors but not own brand.
     citationGaps = getCitationGaps(snapshot, { limit: 10 });
     // Flatten chats with extracted user/assistant pair for the AI-evidence panel.
+    // prompt_id is forwarded so per-prompt signals can scope the drawer to the
+    // exact Peec prompt that fired them (instead of every chat globally
+    // mentioning the brand).
     aiChats = (snapshot.chats ?? []).map((chat) => {
       const { user, assistant } = extractChatExchange(chat);
       return {
         id: chat.id,
+        prompt_id: chat.prompt_id,
         date: chat.date,
         model_id: chat.model_id,
         user,

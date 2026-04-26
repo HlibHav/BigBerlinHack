@@ -18,6 +18,7 @@ import { formatRelative, truncateAtWord } from "@/lib/utils";
  */
 export type AiChat = {
   id: string;
+  prompt_id: string;
   date: string;
   model_id: string;
   user: string;
@@ -41,28 +42,68 @@ function modelLabel(modelId: string): string {
 export function SignalAiEvidence({
   chats,
   brandName,
+  scope = "brand",
 }: {
   chats: AiChat[];
   brandName: string;
+  /**
+   * "prompt" — chats are scoped to the specific Peec prompt this signal fired
+   *   from (per-prompt signals). Title reflects "AI conversations from this
+   *   prompt" because the chats might not all cite the brand individually —
+   *   they're the rows that drove the mention-rate calculation.
+   *
+   * "brand" — chats are everywhere the brand was mentioned. Default for
+   *   peec-delta + Tavily signals where there's no single source prompt.
+   */
+  scope?: "prompt" | "brand";
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   if (chats.length === 0) return null;
 
+  const heading =
+    scope === "prompt"
+      ? `🤖 AI conversations from this prompt (${chats.length})`
+      : `🤖 AI conversations citing ${brandName} (${chats.length})`;
+
   return (
     <div className="rounded border border-emerald-200/60 bg-emerald-50/40 p-2 dark:border-emerald-900/40 dark:bg-emerald-950/20">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
-        🤖 AI conversations citing {brandName} ({chats.length})
+        {heading}
       </p>
       <ul className="mt-1.5 space-y-1.5">
         {chats.slice(0, 3).map((chat) => {
           const isOpen = expandedId === chat.id;
+          const mentions =
+            scope === "prompt"
+              ? chat.brands_mentioned.some(
+                  (b) => b.toLowerCase() === brandName.toLowerCase(),
+                )
+              : true;
           return (
             <li key={chat.id} className="rounded bg-background/80 p-2">
               <div className="flex items-baseline justify-between gap-2 text-[10px]">
                 <span className="font-mono uppercase text-emerald-700 dark:text-emerald-400">
                   {modelLabel(chat.model_id)}
                 </span>
-                <span className="text-muted-foreground">{formatRelative(chat.date)}</span>
+                <div className="flex items-baseline gap-2">
+                  {scope === "prompt" ? (
+                    <span
+                      className={`rounded px-1 py-0.5 text-[9px] font-semibold ${
+                        mentions
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                          : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                      }`}
+                      title={
+                        mentions
+                          ? `Reply mentions ${brandName} — counts toward the mention-rate.`
+                          : `Reply does NOT mention ${brandName} — this is what brings the rate below 100%.`
+                      }
+                    >
+                      {mentions ? `✓ cites ${brandName}` : `× no ${brandName}`}
+                    </span>
+                  ) : null}
+                  <span className="text-muted-foreground">{formatRelative(chat.date)}</span>
+                </div>
               </div>
               <p className="mt-1 text-xs italic text-muted-foreground">
                 «{truncateAtWord(chat.user, 110)}»
