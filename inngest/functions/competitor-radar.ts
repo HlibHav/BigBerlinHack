@@ -477,6 +477,20 @@ export const competitorRadar = inngest.createFunction(
     }>;
 
     // 5. Dedup ----------------------------------------------------------------
+    //    peec_delta signals dedup on (source_url, competitor_id) — both fields
+    //    are stable across radar ticks. Earlier the key included `summary`,
+    //    which broke when the summary template was edited (e.g. Ukrainian "y"
+    //    → English "in") — the same competitor + same Peec prompt URL would
+    //    re-fire under a slightly different summary string. Now phrasing
+    //    changes don't create false duplicates.
+    //
+    //    Tavily signals continue to dedup on URL alone — same article = same
+    //    signal regardless of source_channel.
+    //
+    //    In-batch peec dedup: same (source_url, competitor_id) can appear
+    //    twice within one tick if step 3 (delta) and step 3a (per-prompt)
+    //    both produce a row for the same combination — dedup the batch
+    //    locally before persisting.
     const dedupResult = (await step.run("dedup", async () => {
       const supabase = createServiceClient();
       const cutoffIso = new Date(
@@ -484,7 +498,7 @@ export const competitorRadar = inngest.createFunction(
       ).toISOString();
       const { data: existing, error } = await supabase
         .from("signals")
-        .select("source_url, source_type, summary")
+        .select("source_url, source_type, competitor_id")
         .eq("organization_id", organization_id)
         .gte("created_at", cutoffIso);
       if (error) {
@@ -494,15 +508,20 @@ export const competitorRadar = inngest.createFunction(
       const existingPeecKeys = new Set<string>();
       for (const row of existing ?? []) {
         if (row.source_type === "peec_delta") {
-          existingPeecKeys.add(`${row.source_url}|${row.summary}`);
+          existingPeecKeys.add(`${row.source_url}|${row.competitor_id ?? ""}`);
         } else {
           existingTavilyUrls.add(row.source_url);
         }
       }
 
-      const dedupedPeec = allPeecCandidates.filter(
-        (p) => !existingPeecKeys.has(`${p.source_url}|${p.summary}`),
-      );
+      const seenPeecBatch = new Set<string>();
+      const dedupedPeec = allPeecCandidates.filter((p) => {
+        const key = `${p.source_url}|${p.competitor_id ?? ""}`;
+        if (existingPeecKeys.has(key)) return false;
+        if (seenPeecBatch.has(key)) return false;
+        seenPeecBatch.add(key);
+        return true;
+      });
 
       const seenInBatch = new Set<string>();
       const dedupedTavily = tavilyRaw.filter((t) => {
