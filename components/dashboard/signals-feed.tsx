@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { SignalCard } from "./signal-card";
+import type { AiChat } from "./signal-ai-evidence";
 
 type Signal = {
   id: string;
@@ -31,16 +32,46 @@ export function SignalsFeed({
   competitors,
   organizationId,
   brandSlug,
+  aiChats = [],
+  ownBrandName,
 }: {
   signals: Signal[];
   competitors: Competitor[];
   organizationId: string;
   brandSlug: string;
+  aiChats?: AiChat[];
+  ownBrandName: string;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [showAllLow, setShowAllLow] = useState(false);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const competitorMap = new Map(competitors.map((c) => [c.id, c.display_name]));
+
+  // Pre-bucket chats by brand mentioned (case-insensitive). Each signal then
+  // looks up either its competitor (if competitor_id is set) or own brand.
+  const chatsByBrand = useMemo(() => {
+    const map = new Map<string, AiChat[]>();
+    for (const chat of aiChats) {
+      for (const brand of chat.brands_mentioned) {
+        const key = brand.toLowerCase();
+        const arr = map.get(key) ?? [];
+        arr.push(chat);
+        map.set(key, arr);
+      }
+    }
+    // Sort each bucket newest-first
+    for (const arr of map.values()) {
+      arr.sort((a, b) => (a.date < b.date ? 1 : -1));
+    }
+    return map;
+  }, [aiChats]);
+
+  function chatsForSignal(s: Signal): AiChat[] {
+    const targetBrand = s.competitor_id
+      ? competitorMap.get(s.competitor_id) ?? ownBrandName
+      : ownBrandName;
+    return chatsByBrand.get(targetBrand.toLowerCase()) ?? [];
+  }
 
   const sorted = [...signals].sort((a, b) => {
     const sevDiff = severityRank[a.severity] - severityRank[b.severity];
@@ -107,9 +138,12 @@ export function SignalsFeed({
               <SignalCard
                 key={s.id}
                 signal={s}
-                brandName={s.competitor_id ? competitorMap.get(s.competitor_id) ?? "—" : "—"}
+                brandName={
+                  s.competitor_id ? competitorMap.get(s.competitor_id) ?? ownBrandName : ownBrandName
+                }
                 organizationId={organizationId}
                 brandSlug={brandSlug}
+                aiChats={chatsForSignal(s)}
               />
             ))}
           </ul>

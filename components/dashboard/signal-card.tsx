@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { formatRelative, truncate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { generateOnDemandDraft } from "@/app/actions/counter-draft";
+import { SignalAiEvidence, type AiChat } from "./signal-ai-evidence";
 
 type Signal = {
   id: string;
@@ -72,11 +73,13 @@ export function SignalCard({
   brandName,
   organizationId,
   brandSlug,
+  aiChats,
 }: {
   signal: Signal;
   brandName: string;
   organizationId: string;
   brandSlug: string;
+  aiChats?: AiChat[];
 }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -169,6 +172,9 @@ export function SignalCard({
               </span>
             ))}
           </p>
+          {aiChats && aiChats.length > 0 ? (
+            <SignalAiEvidence chats={aiChats} brandName={brandName} />
+          ) : null}
         </div>
       ) : null}
     </li>

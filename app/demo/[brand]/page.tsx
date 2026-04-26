@@ -14,6 +14,9 @@ import { BackToTopFab } from "@/components/dashboard/back-to-top-fab";
 import { PeecDataSourceBadge } from "@/components/dashboard/peec-data-source-badge";
 import { PrelaunchPanel } from "@/components/prelaunch/prelaunch-panel";
 import { PodcastPrepPanel } from "@/components/dashboard/podcast-prep-panel";
+import { PeecActionsPanel } from "@/components/dashboard/peec-actions-panel";
+import { CitationGapCard } from "@/components/dashboard/citation-gap-card";
+import type { AiChat } from "@/components/dashboard/signal-ai-evidence";
 import type { PrelaunchCheckRow } from "@/components/prelaunch/prelaunch-result-card";
 import type {
   PrelaunchBaseline,
@@ -21,7 +24,12 @@ import type {
   PrelaunchPhraseAvailability,
   PrelaunchVerdict,
 } from "@/lib/schemas/prelaunch-check";
-import { loadPeecSnapshot, getBrandReportHistory } from "@/lib/services/peec-snapshot";
+import {
+  loadPeecSnapshot,
+  getBrandReportHistory,
+  getCitationGaps,
+  extractChatExchange,
+} from "@/lib/services/peec-snapshot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -178,6 +186,9 @@ export default async function DemoPage({
   };
   let healthHistory: HealthReport[] = [];
   let competitorHistories: Array<{ brand_name: string; history: HealthReport[] }> = [];
+  let peecActions: import("@/lib/schemas/peec-snapshot").PeecAction[] = [];
+  let citationGaps: ReturnType<typeof getCitationGaps> = [];
+  let aiChats: AiChat[] = [];
   try {
     const snapshot = await loadPeecSnapshot();
     healthHistory = getBrandReportHistory(snapshot, org.display_name, 90).map((r) => ({
@@ -203,6 +214,23 @@ export default async function DemoPage({
         })),
       }))
       .filter((c) => c.history.length > 0);
+    // Surface Peec opportunity actions (per-scope, sorted by opportunity_score).
+    peecActions = snapshot.actions ?? [];
+    // Citation gaps — URLs that cite competitors but not own brand.
+    citationGaps = getCitationGaps(snapshot, { limit: 10 });
+    // Flatten chats with extracted user/assistant pair for the AI-evidence panel.
+    aiChats = (snapshot.chats ?? []).map((chat) => {
+      const { user, assistant } = extractChatExchange(chat);
+      return {
+        id: chat.id,
+        date: chat.date,
+        model_id: chat.model_id,
+        user,
+        assistant,
+        brands_mentioned: chat.brands_mentioned,
+        sources: chat.sources,
+      } satisfies AiChat;
+    });
   } catch {
     // peec-snapshot read failure — render empty state in hero
   }
@@ -267,6 +295,7 @@ export default async function DemoPage({
                 brandName={org.display_name}
                 competitorHistories={competitorHistories}
               />
+              <CitationGapCard gaps={citationGaps} ownBrandName={org.display_name} />
               <PipelineStatus runs={pipelineRuns} />
               <AuditPanel
                 organizationId={org.id}
@@ -282,6 +311,8 @@ export default async function DemoPage({
               competitors={competitors ?? []}
               organizationId={org.id}
               brandSlug={org.slug}
+              aiChats={aiChats}
+              ownBrandName={org.display_name}
             />
           ),
           drafts: (
@@ -301,6 +332,7 @@ export default async function DemoPage({
                 organizationId={org.id}
                 brandSlug={org.slug}
               />
+              <PeecActionsPanel actions={peecActions} />
               <CostPanel rows={costRows ?? []} />
             </>
           ),

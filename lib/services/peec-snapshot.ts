@@ -3,9 +3,11 @@ import "server-only";
 import bundledSnapshot from "@/data/peec-snapshot.json";
 import {
   type PeecAction,
+  type PeecBrand,
   type PeecBrandReportRow,
   type PeecChat,
   type PeecSnapshotFile,
+  type PeecUrlReportRow,
   PeecSnapshotFileSchema,
 } from "@/lib/schemas/peec-snapshot";
 
@@ -77,4 +79,74 @@ export function getActions(
   return (snapshot.actions ?? [])
     .filter((a) => a.group_type === scope)
     .sort((a, b) => b.opportunity_score - a.opportunity_score);
+}
+
+/** Resolve own brand row from snapshot.brands. Null if no `is_own=true`. */
+export function getOwnBrand(snapshot: PeecSnapshotFile): PeecBrand | null {
+  return (snapshot.brands ?? []).find((b) => b.is_own) ?? null;
+}
+
+/**
+ * Citation gaps — URLs where competitors are cited but the own brand is NOT.
+ * High-retrieval gaps = priority outreach targets (earned-media / SEO).
+ *
+ * Returns rows sorted by `retrievals` desc, with each row enriched with the
+ * list of competitor brand names cited from that URL (display-friendly).
+ *
+ * Per Peec docs (https://docs.peec.ai/mcp/tools, get_url_report) — citation gap
+ * is the canonical use of url_report for own-brand earned-media surfacing.
+ */
+export type CitationGap = PeecUrlReportRow & {
+  competitor_brand_names: string[];
+};
+
+export function getCitationGaps(
+  snapshot: PeecSnapshotFile,
+  options?: { limit?: number },
+): CitationGap[] {
+  const own = getOwnBrand(snapshot);
+  if (!own) return [];
+  const brandsById = new Map((snapshot.brands ?? []).map((b) => [b.id, b]));
+  const gaps: CitationGap[] = [];
+  for (const row of snapshot.url_report ?? []) {
+    if (row.mentioned_brand_ids.includes(own.id)) continue;
+    const competitorIds = row.mentioned_brand_ids.filter((id) => id !== own.id);
+    if (competitorIds.length === 0) continue;
+    const competitor_brand_names = competitorIds
+      .map((id) => brandsById.get(id)?.name)
+      .filter((n): n is string => Boolean(n));
+    if (competitor_brand_names.length === 0) continue;
+    gaps.push({ ...row, competitor_brand_names });
+  }
+  gaps.sort((a, b) => b.retrievals - a.retrievals);
+  return typeof options?.limit === "number" ? gaps.slice(0, options.limit) : gaps;
+}
+
+/**
+ * Top URLs ranked by retrievals — use to surface "where AI engines pull from"
+ * regardless of citation status. Helpful for editorial outreach context.
+ */
+export function getTopRetrievalUrls(
+  snapshot: PeecSnapshotFile,
+  limit = 5,
+): PeecUrlReportRow[] {
+  return (snapshot.url_report ?? [])
+    .slice()
+    .sort((a, b) => b.retrievals - a.retrievals)
+    .slice(0, limit);
+}
+
+/**
+ * Last-message-pair extractor for a Peec chat — returns the user prompt and
+ * the assistant response, both as strings. Falls back to empty string when
+ * messages don't follow expected role/content shape.
+ */
+export function extractChatExchange(chat: PeecChat): {
+  user: string;
+  assistant: string;
+} {
+  const msgs = (chat.messages ?? []) as Array<{ role?: string; content?: string }>;
+  const user = msgs.find((m) => m?.role === "user")?.content ?? "";
+  const assistant = msgs.find((m) => m?.role === "assistant")?.content ?? "";
+  return { user: String(user), assistant: String(assistant) };
 }

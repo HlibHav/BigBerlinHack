@@ -111,6 +111,15 @@ Peec tracks how AI models respond to brand-relevant prompts daily — visibility
 
 The snapshot lives at `data/peec-snapshot.json` and is refreshed manually. This keeps the demo fully functional without a live API dependency.
 
+Concretely, BBH operationalizes four Peec MCP data surfaces in the dashboard:
+
+- **`brand_reports`** → `BrandHealthHero` — composite health score (visibility · sentiment · position) with 7/30/90-day multi-line trend chart, self brand vs competitors.
+- **`url_report`** → `CitationGapCard` — URLs AI engines retrieve from that cite competitors but not the own brand. Ranked by retrievals = priority earned-media outreach targets.
+- **`actions`** → `PeecActionsPanel` — Peec's per-scope opportunity actions (owned / editorial / reference / ugc) with `opportunity_score`, surfaced as four tabs in Operations.
+- **`chats`** → `SignalAiEvidence` — real ChatGPT / Perplexity conversations rendered inline in each Signal card's evidence drawer. Shows the literal AI response that motivated the signal, with model attribution + source list.
+
+Every panel falls back to a friendly empty state when the snapshot is stale or doesn't contain the relevant rows for that brand.
+
 ---
 
 ## Big Berlin Hack — submission compliance
@@ -137,6 +146,7 @@ The snapshot lives at `data/peec-snapshot.json` and is refreshed manually. This 
 - Shared brand voice forbidden-phrases module (lib/brand) — DRY between simulator + evals + judge prompts
 - Competitive analysis (`brand-intel/feedback/competitor-builds-2026-04-26.md`) of two MCP Challenge entries we observed
 - Per-pipeline feature spec under `brand-intel/features/podcast-prep.md` + ADR
+- Peec MCP surface depth — `actions` / `url_report` / `chats` operationalized as `PeecActionsPanel`, `CitationGapCard`, `SignalAiEvidence` (snapshot fields previously dormant now drive Overview + Operations + Signals)
 
 **Project deliverables for the jury:**
 - Public repo: https://github.com/HlibHav/BigBerlinHack
