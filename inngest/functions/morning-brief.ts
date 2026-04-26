@@ -12,6 +12,8 @@
 //   4. send-slack             — POST to SLACK_WEBHOOK_URL; throws on HTTP error
 //   5. persist-delivery       — INSERT brief_deliveries row (status=sent|failed)
 //   6. persist-run            — runs row з MorningBriefRunStatsSchema
+import { z } from "zod";
+
 import { inngest } from "@/inngest/client";
 import type { Json } from "@/lib/supabase/types";
 import {
@@ -22,6 +24,10 @@ import {
 } from "@/lib/schemas/morning-brief";
 import { MorningBriefRunStatsSchema } from "@/lib/schemas/run-stats";
 import { sumRunCost } from "@/lib/services/cost";
+import {
+  generateObjectGemini,
+  isGeminiAvailable,
+} from "@/lib/services/gemini";
 import { generateObjectOpenAI } from "@/lib/services/openai";
 import {
   getBrandReportHistory,
@@ -353,6 +359,79 @@ export async function __morningBriefHandler({
         .single();
       if (error) throw error;
       return data.id;
+    });
+
+    // -----------------------------------------------------------------------
+    // 5b. generate-voice-script — natural-language rewrite for Gradium TTS
+    //     playback. Slack message stays untouched. Failure here is a soft
+    //     warning, not a pipeline failure: the Slack delivery is the
+    //     authoritative artifact, voice is opt-in playback inside dashboard.
+    // -----------------------------------------------------------------------
+    await step.run("generate-voice-script", async () => {
+      try {
+        const VoiceScriptSchema = z.object({
+          script: z.string().min(80).max(2000),
+        });
+        const prompt = [
+          `Rewrite the morning brief below as a natural-sounding spoken narration for ${HACKATHON_BRAND_NAME}'s founder. Target a 60-90 second voice clip.`,
+          ``,
+          `Original Slack-formatted brief:`,
+          `"""`,
+          brief.summary_body,
+          `"""`,
+          ``,
+          `Hard rules:`,
+          `- Output PLAIN PROSE only. No Markdown (no asterisks, no underscores, no bullets •/-/*, no code backticks, no link syntax).`,
+          `- TTS will read every character literally — strip all formatting.`,
+          `- Use contractions ("we're", "it's", "there's"). Short sentences. Natural transitions ("Quick update", "Now over to", "Worth flagging").`,
+          `- Open with a friendly two-sentence greeting that names the date or "today".`,
+          `- Convert any list of signals/drafts into spoken sentences ("Three things moved overnight. First, …. Second, …. And third, …").`,
+          `- Read percentages as words ("up twenty-three percent" not "+23%"). Keep brand names spelled normally.`,
+          `- Close with the single most pressing next action for the founder, phrased as a recommendation.`,
+          ``,
+          `Return only the script — no commentary.`,
+        ].join("\n");
+
+        const usingGemini = isGeminiAvailable();
+        const { object } = usingGemini
+          ? await generateObjectGemini({
+              schema: VoiceScriptSchema,
+              prompt,
+              model: "gemini-2.5-flash",
+              organization_id,
+              operation: "morning-brief:voice-script",
+              schemaName: "MorningBriefVoiceScript",
+              temperature: 0.6,
+              run_id: runId,
+            })
+          : await generateObjectOpenAI({
+              schema: VoiceScriptSchema,
+              prompt,
+              model: "gpt-4o-mini",
+              organization_id,
+              operation: "morning-brief:voice-script",
+              schemaName: "MorningBriefVoiceScript",
+              temperature: 0.6,
+              run_id: runId,
+            });
+
+        const supabase = createServiceClient();
+        const { error: updErr } = await supabase
+          .from("brief_deliveries")
+          .update({ voice_script: object.script })
+          .eq("id", deliveryId);
+        if (updErr) {
+          logger.warn("[generate-voice-script] persist failed", {
+            delivery_id: deliveryId,
+            err: updErr.message,
+          });
+        }
+      } catch (err) {
+        logger.warn("[generate-voice-script] skipped", {
+          delivery_id: deliveryId,
+          err: (err as Error).message,
+        });
+      }
     });
 
     // -----------------------------------------------------------------------

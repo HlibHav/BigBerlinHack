@@ -52,6 +52,7 @@ export type Database = {
           sent_at: string | null
           status: Database["public"]["Enums"]["brief_status"]
           summary_body: string
+          voice_script: string | null
         }
         Insert: {
           channel?: Database["public"]["Enums"]["brief_channel"]
@@ -65,6 +66,7 @@ export type Database = {
           sent_at?: string | null
           status?: Database["public"]["Enums"]["brief_status"]
           summary_body: string
+          voice_script?: string | null
         }
         Update: {
           channel?: Database["public"]["Enums"]["brief_channel"]
@@ -78,6 +80,7 @@ export type Database = {
           sent_at?: string | null
           status?: Database["public"]["Enums"]["brief_status"]
           summary_body?: string
+          voice_script?: string | null
         }
         Relationships: [
           {

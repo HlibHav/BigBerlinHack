@@ -108,7 +108,7 @@ export default async function DemoPage({
       .limit(20),
     supabase
       .from("brief_deliveries")
-      .select("id, delivery_date, channel, recipient, status, summary_body, sent_at, error_reason, created_at")
+      .select("id, delivery_date, channel, recipient, status, summary_body, voice_script, sent_at, error_reason, created_at")
       .eq("organization_id", org.id)
       .order("delivery_date", { ascending: false })
       .limit(1)

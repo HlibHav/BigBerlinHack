@@ -1,4 +1,5 @@
 import { formatRelative } from "@/lib/utils";
+import { PlayVoiceBriefButton } from "./play-voice-brief-button";
 import { SendBriefButton } from "./send-brief-button";
 
 type Brief = {
@@ -8,6 +9,7 @@ type Brief = {
   recipient: string;
   status: "queued" | "sent" | "failed";
   summary_body: string;
+  voice_script: string | null;
   sent_at: string | null;
   error_reason: string | null;
 } | null;
@@ -53,6 +55,15 @@ export function MorningBriefPanel({
             </span>
           </div>
           <pre className="mt-2 whitespace-pre-wrap font-sans text-xs">{latestBrief.summary_body}</pre>
+          <div className="mt-2 flex items-center gap-2">
+            <PlayVoiceBriefButton
+              deliveryId={latestBrief.id}
+              available={Boolean(latestBrief.voice_script)}
+            />
+            <span className="text-[10px] text-muted-foreground">
+              60-90s natural rewrite via Gemini Flash, voiced by Gradium
+            </span>
+          </div>
           {latestBrief.error_reason ? (
             <p className="mt-2 text-xs text-red-700 dark:text-red-400">
               <strong>Error:</strong> {latestBrief.error_reason}
