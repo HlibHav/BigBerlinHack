@@ -185,13 +185,49 @@ export const competitorRadar = inngest.createFunction(
     })) as PeecSnapshotFile;
 
     // 3. Peec delta detect ----------------------------------------------------
+    //    Two branches per competitor:
+    //    - history.length === 1 → low-severity baseline signal (informational).
+    //      Дозволяє Peec coverage показати навіть на single-day snapshot. Refresh
+    //      peec-snapshot.json через MCP щоб включити delta detection.
+    //    - history.length >= 2 → standard delta detection (visibility/position/
+    //      sentiment thresholds). Generates med/high signals via severityFromPeec.
     const peecCandidates = (await step.run("peec-delta-detect", async () => {
       const out: SignalCandidate[] = [];
       for (const comp of competitors) {
         const history = getBrandReportHistory(snapshot, comp.display_name, 2);
-        if (history.length < 2) continue; // need ≥2 days for delta
+        if (history.length === 0) continue; // no Peec data — skip silently
 
-        const [curr, prev] = history;
+        const peecBrand = snapshot.brands.find(
+          (b) => b.name.toLowerCase() === comp.display_name.toLowerCase(),
+        );
+        const curr = history[0];
+        const sourceUrl = `https://app.peec.ai/projects/${snapshot.project_id}/brands/${peecBrand?.id ?? curr.brand_id}`;
+        const peecMeta = {
+          captured_at: snapshot.captured_at,
+          project_id: snapshot.project_id,
+          brand_id: peecBrand?.id ?? curr.brand_id,
+        };
+
+        // Single-day branch: Peec snapshot exists but no prior day для delta.
+        // Generate low-severity informational signal. Coverage > silence.
+        if (history.length === 1) {
+          out.push({
+            source_type: "peec_delta",
+            source_url: sourceUrl,
+            severity: "low",
+            sentiment: curr.sentiment,
+            summary: `${comp.display_name} Peec baseline: visibility ${curr.visibility.toFixed(2)}, share-of-voice ${curr.share_of_voice.toFixed(2)}, sentiment ${curr.sentiment}, position ${curr.position ?? "n/a"}.`,
+            reasoning: `Single-day Peec snapshot — no prior day для delta detection. Refresh peec-snapshot.json через MCP щоб отримати real movement signals.`,
+            evidence_refs: [sourceUrl],
+            competitor_id: comp.id,
+            position: curr.position,
+            peec_meta: peecMeta,
+          });
+          continue;
+        }
+
+        // Two+ days available — standard delta detection.
+        const prev = history[1];
         const visDelta = pctDelta(curr.visibility, prev.visibility);
         const posDelta =
           curr.position !== null && prev.position !== null
@@ -199,15 +235,10 @@ export const competitorRadar = inngest.createFunction(
             : 0;
         const sentimentFlipped = curr.sentiment !== prev.sentiment;
 
-        const movement =
-          visDelta > 0.1 || posDelta > 1 || sentimentFlipped;
+        const movement = visDelta > 0.1 || posDelta > 1 || sentimentFlipped;
         if (!movement) continue;
 
         const severity = severityFromPeec(visDelta, posDelta, sentimentFlipped);
-        const peecBrand = snapshot.brands.find(
-          (b) => b.name.toLowerCase() === comp.display_name.toLowerCase(),
-        );
-        const sourceUrl = `https://app.peec.ai/projects/${snapshot.project_id}/brands/${peecBrand?.id ?? curr.brand_id}`;
 
         out.push({
           source_type: "peec_delta",
@@ -219,11 +250,7 @@ export const competitorRadar = inngest.createFunction(
           evidence_refs: [sourceUrl],
           competitor_id: comp.id,
           position: curr.position,
-          peec_meta: {
-            captured_at: snapshot.captured_at,
-            project_id: snapshot.project_id,
-            brand_id: peecBrand?.id ?? curr.brand_id,
-          },
+          peec_meta: peecMeta,
         });
       }
       return out;
