@@ -1,61 +1,220 @@
 {
-  "captured_at": "2026-04-25T14:10:00.000Z",
+  "captured_at": "2026-04-26T08:00:00.000Z",
   "project_id": "or_d9869f1c-3586-43f1-a994-c63125459aad",
   "brands": [
     {
       "id": "kw_62d75b81-7f49-4cf3-8e76-dc210d7d7641",
       "name": "Attio",
-      "domains": ["attio.com"],
-      "aliases": ["Attio CRM", "modern CRM", "flexible CRM"],
+      "domains": [
+        "attio.com"
+      ],
+      "aliases": [
+        "Attio CRM",
+        "modern CRM",
+        "flexible CRM"
+      ],
       "is_own": true
     },
     {
       "id": "kw_dac50088-17a9-42b9-ae10-4794a08b0563",
       "name": "HubSpot",
-      "domains": ["hubspot.com"],
-      "aliases": ["HubSpot CRM", "HubSpot Sales Hub"],
+      "domains": [
+        "hubspot.com"
+      ],
+      "aliases": [
+        "HubSpot CRM",
+        "HubSpot Sales Hub"
+      ],
       "is_own": false
     },
     {
       "id": "kw_432ca61f-1afd-499d-934a-0c360a9d0936",
       "name": "Salesforce",
-      "domains": ["salesforce.com"],
-      "aliases": ["Sales Cloud", "Salesforce CRM"],
+      "domains": [
+        "salesforce.com"
+      ],
+      "aliases": [
+        "Sales Cloud",
+        "Salesforce CRM"
+      ],
       "is_own": false
     },
     {
       "id": "kw_19c6ddeb-5129-443b-b676-0ff04294ba14",
       "name": "Pipedrive",
-      "domains": ["pipedrive.com"],
+      "domains": [
+        "pipedrive.com"
+      ],
       "aliases": [],
       "is_own": false
     },
     {
       "id": "kw_70e6321a-673c-47ad-a33c-daad94cf8575",
       "name": "Zoho",
-      "domains": ["zoho.com"],
+      "domains": [
+        "zoho.com"
+      ],
       "aliases": [],
       "is_own": false
     },
     {
       "id": "kw_d972f7b2-cff6-4d9d-adaf-5a63241c472c",
       "name": "Monday",
-      "domains": ["monday.com"],
+      "domains": [
+        "monday.com"
+      ],
       "aliases": [],
       "is_own": false
     }
   ],
   "prompts": [
-    { "id": "pr_bad0061a-b19e-4129-97ba-bb7db9fdcb06", "text": "best modern CRM for B2B startups", "country_code": "US" },
-    { "id": "pr_46b0b687-b178-4e59-aaf4-3d46ca66a664", "text": "Salesforce alternatives for fast-growing teams", "country_code": "US" },
-    { "id": "pr_39781170-c9b9-48a7-9b6c-a5edffff501a", "text": "HubSpot vs modern CRM tools comparison", "country_code": "US" },
-    { "id": "pr_ae1d4448-7063-480d-866d-9194b259d50f", "text": "lightweight CRM that scales with sales team", "country_code": "US" },
-    { "id": "pr_2394d274-a4a9-413b-92ed-ce9558bc76fe", "text": "best CRM for product-led growth companies", "country_code": "US" },
-    { "id": "pr_e5e25abb-d6e5-440d-8331-1efad301f6e1", "text": "Attio vs Salesforce vs HubSpot which to choose", "country_code": "US" },
-    { "id": "pr_8b71dfca-6be2-4e93-bf8d-a73e7d1d264e", "text": "flexible CRM with strong API for developers", "country_code": "US" },
-    { "id": "pr_1ea3dc99-2a44-4717-8717-223cc992a435", "text": "modern CRM with AI features and good UX", "country_code": "US" }
+    {
+      "id": "pr_bad0061a-b19e-4129-97ba-bb7db9fdcb06",
+      "text": "best modern CRM for B2B startups",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_46b0b687-b178-4e59-aaf4-3d46ca66a664",
+      "text": "Salesforce alternatives for fast-growing teams",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_39781170-c9b9-48a7-9b6c-a5edffff501a",
+      "text": "HubSpot vs modern CRM tools comparison",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_ae1d4448-7063-480d-866d-9194b259d50f",
+      "text": "lightweight CRM that scales with sales team",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_2394d274-a4a9-413b-92ed-ce9558bc76fe",
+      "text": "best CRM for product-led growth companies",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_e5e25abb-d6e5-440d-8331-1efad301f6e1",
+      "text": "Attio vs Salesforce vs HubSpot which to choose",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_8b71dfca-6be2-4e93-bf8d-a73e7d1d264e",
+      "text": "flexible CRM with strong API for developers",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_1ea3dc99-2a44-4717-8717-223cc992a435",
+      "text": "modern CRM with AI features and good UX",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_extra_01",
+      "text": "AI-native CRM with autonomous agents",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_extra_02",
+      "text": "best CRM for sales pipeline forecasting in 2026",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_extra_03",
+      "text": "CRM software with strongest GraphQL or webhook integrations",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_extra_04",
+      "text": "CRM with built-in revenue intelligence dashboards",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_extra_05",
+      "text": "CRM pricing comparison Attio vs HubSpot vs Salesforce 2026",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_extra_06",
+      "text": "CRM that fits Series A founders and lean RevOps teams",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_extra_07",
+      "text": "best customer relationship management for SaaS companies",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_extra_08",
+      "text": "CRM with native Slack and Notion integrations",
+      "country_code": "US"
+    },
+    {
+      "id": "pr_extra_09",
+      "text": "modern CRM that replaces spreadsheets for deal tracking",
+      "country_code": "US"
+    }
   ],
   "brand_reports": [
+    {
+      "brand_id": "kw_62d75b81-7f49-4cf3-8e76-dc210d7d7641",
+      "brand_name": "Attio",
+      "date": "2026-04-26",
+      "visibility": 0.11,
+      "mention_count": 156,
+      "share_of_voice": 0.17,
+      "sentiment": "positive",
+      "position": 2.6
+    },
+    {
+      "brand_id": "kw_dac50088-17a9-42b9-ae10-4794a08b0563",
+      "brand_name": "HubSpot",
+      "date": "2026-04-26",
+      "visibility": 0.21,
+      "mention_count": 322,
+      "share_of_voice": 0.34,
+      "sentiment": "positive",
+      "position": 2.2
+    },
+    {
+      "brand_id": "kw_432ca61f-1afd-499d-934a-0c360a9d0936",
+      "brand_name": "Salesforce",
+      "date": "2026-04-26",
+      "visibility": 0.11,
+      "mention_count": 192,
+      "share_of_voice": 0.2,
+      "sentiment": "negative",
+      "position": 3.4
+    },
+    {
+      "brand_id": "kw_19c6ddeb-5129-443b-b676-0ff04294ba14",
+      "brand_name": "Pipedrive",
+      "date": "2026-04-26",
+      "visibility": 0.1,
+      "mention_count": 112,
+      "share_of_voice": 0.12,
+      "sentiment": "positive",
+      "position": 3.4
+    },
+    {
+      "brand_id": "kw_70e6321a-673c-47ad-a33c-daad94cf8575",
+      "brand_name": "Zoho",
+      "date": "2026-04-26",
+      "visibility": 0.11,
+      "mention_count": 138,
+      "share_of_voice": 0.14,
+      "sentiment": "positive",
+      "position": 3.9
+    },
+    {
+      "brand_id": "kw_d972f7b2-cff6-4d9d-adaf-5a63241c472c",
+      "brand_name": "Monday",
+      "date": "2026-04-26",
+      "visibility": 0.06,
+      "mention_count": 52,
+      "share_of_voice": 0.06,
+      "sentiment": "positive",
+      "position": 4.7
+    },
     {
       "brand_id": "kw_62d75b81-7f49-4cf3-8e76-dc210d7d7641",
       "brand_name": "Attio",
@@ -72,7 +231,7 @@
       "date": "2026-04-25",
       "visibility": 0.17,
       "mention_count": 274,
-      "share_of_voice": 0.30,
+      "share_of_voice": 0.3,
       "sentiment": "neutral",
       "position": 2.7
     },
@@ -124,14 +283,33 @@
       "model_id": "perplexity-scraper",
       "date": "2026-04-25T08:00:00.000Z",
       "messages": [
-        { "role": "user", "content": "Attio vs Salesforce vs HubSpot which to choose" },
-        { "role": "assistant", "content": "Direct answer: Attio for speed and flexibility (outbound-led, fast onboarding); Salesforce for enterprise depth and customization; HubSpot for integrated marketing+sales+service. Attio shines for small to mid-sized teams wanting flexible data structures and rapid setup. Mentioned positions: Attio (1), Salesforce (2), HubSpot (3)." }
+        {
+          "role": "user",
+          "content": "Attio vs Salesforce vs HubSpot which to choose"
+        },
+        {
+          "role": "assistant",
+          "content": "Direct answer: Attio for speed and flexibility (outbound-led, fast onboarding); Salesforce for enterprise depth and customization; HubSpot for integrated marketing+sales+service. Attio shines for small to mid-sized teams wanting flexible data structures and rapid setup. Mentioned positions: Attio (1), Salesforce (2), HubSpot (3)."
+        }
       ],
-      "brands_mentioned": ["Attio", "Salesforce", "HubSpot"],
+      "brands_mentioned": [
+        "Attio",
+        "Salesforce",
+        "HubSpot"
+      ],
       "sources": [
-        { "url": "https://www.stradaops.com/blog/attio-vs-salesforce-vs-hubspot-a-comparative-analysis", "title": "Attio vs Salesforce vs HubSpot: Comparative Analysis" },
-        { "url": "https://efficient.app/compare/attio-vs-salesforce", "title": "Attio vs Salesforce — Efficient.app Compare" },
-        { "url": "https://forecastio.ai/blog/attio-vs-hubspot", "title": "Attio vs HubSpot — Forecastio Blog" }
+        {
+          "url": "https://www.stradaops.com/blog/attio-vs-salesforce-vs-hubspot-a-comparative-analysis",
+          "title": "Attio vs Salesforce vs HubSpot: Comparative Analysis"
+        },
+        {
+          "url": "https://efficient.app/compare/attio-vs-salesforce",
+          "title": "Attio vs Salesforce \u2014 Efficient.app Compare"
+        },
+        {
+          "url": "https://forecastio.ai/blog/attio-vs-hubspot",
+          "title": "Attio vs HubSpot \u2014 Forecastio Blog"
+        }
       ]
     },
     {
@@ -140,14 +318,36 @@
       "model_id": "chatgpt-scraper",
       "date": "2026-04-25T08:15:00.000Z",
       "messages": [
-        { "role": "user", "content": "Salesforce alternatives for fast-growing teams" },
-        { "role": "assistant", "content": "Top Salesforce alternatives in 2026: HubSpot (all-in-one, fastest implement); Pipedrive (sales-focused, deal pipelines); Zoho (best value); Freshsales (built-in calling+AI); Monday CRM (visual+ops); Attio (modern next-gen, Notion+CRM vibes). Decision: HubSpot for speed, Pipedrive for sales velocity, Zoho for cost, Attio for modern flexible system early." }
+        {
+          "role": "user",
+          "content": "Salesforce alternatives for fast-growing teams"
+        },
+        {
+          "role": "assistant",
+          "content": "Top Salesforce alternatives in 2026: HubSpot (all-in-one, fastest implement); Pipedrive (sales-focused, deal pipelines); Zoho (best value); Freshsales (built-in calling+AI); Monday CRM (visual+ops); Attio (modern next-gen, Notion+CRM vibes). Decision: HubSpot for speed, Pipedrive for sales velocity, Zoho for cost, Attio for modern flexible system early."
+        }
       ],
-      "brands_mentioned": ["Salesforce", "HubSpot", "Pipedrive", "Zoho", "Monday", "Attio"],
+      "brands_mentioned": [
+        "Salesforce",
+        "HubSpot",
+        "Pipedrive",
+        "Zoho",
+        "Monday",
+        "Attio"
+      ],
       "sources": [
-        { "url": "https://getasearch.com/blog/salesforce-alternatives/", "title": "Salesforce Alternatives 2026" },
-        { "url": "https://saascrmreview.com/salesforce-crm-alternatives/", "title": "Salesforce CRM Alternatives Reviewed" },
-        { "url": "https://crmcompared.com/alternatives/salesforce-alternatives/", "title": "CRM Compared — Salesforce Alternatives" }
+        {
+          "url": "https://getasearch.com/blog/salesforce-alternatives/",
+          "title": "Salesforce Alternatives 2026"
+        },
+        {
+          "url": "https://saascrmreview.com/salesforce-crm-alternatives/",
+          "title": "Salesforce CRM Alternatives Reviewed"
+        },
+        {
+          "url": "https://crmcompared.com/alternatives/salesforce-alternatives/",
+          "title": "CRM Compared \u2014 Salesforce Alternatives"
+        }
       ]
     },
     {
@@ -156,14 +356,35 @@
       "model_id": "google-ai-overview-scraper",
       "date": "2026-04-25T08:30:00.000Z",
       "messages": [
-        { "role": "user", "content": "flexible CRM with strong API for developers" },
-        { "role": "assistant", "content": "Developer-First CRMs: Twenty (open-source, React+Node), Atomic CRM (code-first, React+TS), SuiteCRM (REST API + modular). Modern Sales: Pipedrive (RESTful API + Developer Platform), Close (comprehensive API + Python client), Salesflare (OpenSpec API). Enterprise Flex: Salesforce (Lightning Platform, Apex), Zoho (REST + SDKs), Attio (modern REST API + TypeScript SDK + embeddable React framework). Integration-Centric: Monday (GraphQL-first)." }
+        {
+          "role": "user",
+          "content": "flexible CRM with strong API for developers"
+        },
+        {
+          "role": "assistant",
+          "content": "Developer-First CRMs: Twenty (open-source, React+Node), Atomic CRM (code-first, React+TS), SuiteCRM (REST API + modular). Modern Sales: Pipedrive (RESTful API + Developer Platform), Close (comprehensive API + Python client), Salesflare (OpenSpec API). Enterprise Flex: Salesforce (Lightning Platform, Apex), Zoho (REST + SDKs), Attio (modern REST API + TypeScript SDK + embeddable React framework). Integration-Centric: Monday (GraphQL-first)."
+        }
       ],
-      "brands_mentioned": ["Pipedrive", "Salesforce", "Zoho", "Attio", "Monday"],
+      "brands_mentioned": [
+        "Pipedrive",
+        "Salesforce",
+        "Zoho",
+        "Attio",
+        "Monday"
+      ],
       "sources": [
-        { "url": "https://attio.com/", "title": "Attio — Customer Relationship Magic" },
-        { "url": "https://www.pipedrive.com/en/features/crm-api", "title": "Pipedrive CRM API" },
-        { "url": "https://monday.com/blog/crm-and-sales/open-source-crm-software/", "title": "Monday — Open-Source CRM Software" }
+        {
+          "url": "https://attio.com/",
+          "title": "Attio \u2014 Customer Relationship Magic"
+        },
+        {
+          "url": "https://www.pipedrive.com/en/features/crm-api",
+          "title": "Pipedrive CRM API"
+        },
+        {
+          "url": "https://monday.com/blog/crm-and-sales/open-source-crm-software/",
+          "title": "Monday \u2014 Open-Source CRM Software"
+        }
       ]
     }
   ],
@@ -173,45 +394,91 @@
       "title": "Attio vs Salesforce: Which Should You Choose? | Efficient App",
       "citation_count": 2,
       "retrievals": 7,
-      "mentioned_brand_ids": ["kw_19c6ddeb-5129-443b-b676-0ff04294ba14", "kw_432ca61f-1afd-499d-934a-0c360a9d0936", "kw_62d75b81-7f49-4cf3-8e76-dc210d7d7641", "kw_dac50088-17a9-42b9-ae10-4794a08b0563"]
+      "mentioned_brand_ids": [
+        "kw_19c6ddeb-5129-443b-b676-0ff04294ba14",
+        "kw_432ca61f-1afd-499d-934a-0c360a9d0936",
+        "kw_62d75b81-7f49-4cf3-8e76-dc210d7d7641",
+        "kw_dac50088-17a9-42b9-ae10-4794a08b0563"
+      ]
     },
     {
       "url": "https://attio.com/",
-      "title": "Attio — Customer Relationship Magic",
+      "title": "Attio \u2014 Customer Relationship Magic",
       "citation_count": 1,
       "retrievals": 7,
-      "mentioned_brand_ids": ["kw_62d75b81-7f49-4cf3-8e76-dc210d7d7641"]
+      "mentioned_brand_ids": [
+        "kw_62d75b81-7f49-4cf3-8e76-dc210d7d7641"
+      ]
     },
     {
       "url": "https://forecastio.ai/blog/attio-vs-hubspot",
-      "title": "Attio vs HubSpot — Forecastio",
+      "title": "Attio vs HubSpot \u2014 Forecastio",
       "citation_count": 0,
       "retrievals": 5,
-      "mentioned_brand_ids": ["kw_62d75b81-7f49-4cf3-8e76-dc210d7d7641", "kw_dac50088-17a9-42b9-ae10-4794a08b0563"]
+      "mentioned_brand_ids": [
+        "kw_62d75b81-7f49-4cf3-8e76-dc210d7d7641",
+        "kw_dac50088-17a9-42b9-ae10-4794a08b0563"
+      ]
     },
     {
       "url": "https://www.pipedrive.com/en/features/crm-api",
       "title": "Pipedrive CRM API",
       "citation_count": 2,
       "retrievals": 9,
-      "mentioned_brand_ids": ["kw_19c6ddeb-5129-443b-b676-0ff04294ba14"]
+      "mentioned_brand_ids": [
+        "kw_19c6ddeb-5129-443b-b676-0ff04294ba14"
+      ]
     },
     {
       "url": "https://monday.com/blog/crm-and-sales/open-source-crm-software/",
-      "title": "Monday — Open-Source CRM Software",
+      "title": "Monday \u2014 Open-Source CRM Software",
       "citation_count": 3,
       "retrievals": 11,
-      "mentioned_brand_ids": ["kw_d972f7b2-cff6-4d9d-adaf-5a63241c472c"]
+      "mentioned_brand_ids": [
+        "kw_d972f7b2-cff6-4d9d-adaf-5a63241c472c"
+      ]
     }
   ],
   "actions": [
-    { "text": "Publish more comparison content (Attio vs Salesforce, vs HubSpot, vs Pipedrive) — owned domain has 0% coverage on COMPARISON page type that drives 27 LISTICLE/COMPARISON URLs in editorial layer", "group_type": "owned", "opportunity_score": 0.016 },
-    { "text": "Build LISTICLE-style 'best CRM' content on attio.com — editorial LISTICLE category captures 901 retrievals (highest opportunity score 0.54)", "group_type": "owned", "opportunity_score": 0.008 },
-    { "text": "Pitch LISTICLE inclusion to PCMag, Zapier, TechRadar, Tom's Guide — these dominate 'best CRM' editorial LISTICLES (901 retrievals captured)", "group_type": "editorial", "opportunity_score": 0.541 },
-    { "text": "Pitch COMPARISON inclusion (Attio vs incumbents) to editorial COMPARISON publishers — 106 retrievals, opportunity 0.064", "group_type": "editorial", "opportunity_score": 0.064 },
-    { "text": "Publish HOW_TO_GUIDE content on file sync / CRM workflows — 54 retrievals captured by editorial guides", "group_type": "editorial", "opportunity_score": 0.032 },
-    { "text": "YouTube content (CRM tutorials/comparisons) — UGC YouTube captures 264 retrievals, second-highest opportunity score 0.16", "group_type": "ugc", "opportunity_score": 0.158 },
-    { "text": "Reddit presence (r/CRM, r/CRMSoftware, r/SaaS) — UGC Reddit captures 151 retrievals (opportunity 0.09)", "group_type": "ugc", "opportunity_score": 0.091 },
-    { "text": "Wikipedia entry/citations — REFERENCE wikipedia.org captures 32 retrievals (opportunity 0.019)", "group_type": "reference", "opportunity_score": 0.019 }
+    {
+      "text": "Publish more comparison content (Attio vs Salesforce, vs HubSpot, vs Pipedrive) \u2014 owned domain has 0% coverage on COMPARISON page type that drives 27 LISTICLE/COMPARISON URLs in editorial layer",
+      "group_type": "owned",
+      "opportunity_score": 0.016
+    },
+    {
+      "text": "Build LISTICLE-style 'best CRM' content on attio.com \u2014 editorial LISTICLE category captures 901 retrievals (highest opportunity score 0.54)",
+      "group_type": "owned",
+      "opportunity_score": 0.008
+    },
+    {
+      "text": "Pitch LISTICLE inclusion to PCMag, Zapier, TechRadar, Tom's Guide \u2014 these dominate 'best CRM' editorial LISTICLES (901 retrievals captured)",
+      "group_type": "editorial",
+      "opportunity_score": 0.541
+    },
+    {
+      "text": "Pitch COMPARISON inclusion (Attio vs incumbents) to editorial COMPARISON publishers \u2014 106 retrievals, opportunity 0.064",
+      "group_type": "editorial",
+      "opportunity_score": 0.064
+    },
+    {
+      "text": "Publish HOW_TO_GUIDE content on file sync / CRM workflows \u2014 54 retrievals captured by editorial guides",
+      "group_type": "editorial",
+      "opportunity_score": 0.032
+    },
+    {
+      "text": "YouTube content (CRM tutorials/comparisons) \u2014 UGC YouTube captures 264 retrievals, second-highest opportunity score 0.16",
+      "group_type": "ugc",
+      "opportunity_score": 0.158
+    },
+    {
+      "text": "Reddit presence (r/CRM, r/CRMSoftware, r/SaaS) \u2014 UGC Reddit captures 151 retrievals (opportunity 0.09)",
+      "group_type": "ugc",
+      "opportunity_score": 0.091
+    },
+    {
+      "text": "Wikipedia entry/citations \u2014 REFERENCE wikipedia.org captures 32 retrievals (opportunity 0.019)",
+      "group_type": "reference",
+      "opportunity_score": 0.019
+    }
   ]
 }

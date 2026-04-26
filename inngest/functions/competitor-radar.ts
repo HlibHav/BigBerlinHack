@@ -162,13 +162,17 @@ export const competitorRadar = inngest.createFunction(
     })) as string;
 
     // 1. Load competitors -----------------------------------------------------
+    //    Виключаємо relationship='self' (own brand) — radar моніторить тільки
+    //    зовнішні бренди. Без цього filter Attio попадав у signals і counter-
+    //    drafts проти самих себе (видно у /demo/attio?tab=signals).
     const competitors = (await step.run("load-competitors", async () => {
       const supabase = createServiceClient();
       const { data, error } = await supabase
         .from("competitors")
-        .select("id, display_name, search_terms, is_active")
+        .select("id, display_name, search_terms, is_active, relationship")
         .eq("organization_id", organization_id)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .neq("relationship", "self");
       if (error) {
         throw new Error(`[load-competitors] ${error.message}`);
       }
