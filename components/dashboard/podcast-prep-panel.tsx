@@ -22,10 +22,10 @@ export function PodcastPrepPanel({
       <header className="space-y-1">
         <h2 className="text-base font-semibold">Podcast prep · {brandName}</h2>
         <p className="text-xs text-muted-foreground">
-          Generate retrieval-optimized brief для founder перед podcast
-          appearance. Транскрипт публікується на 5-10 surfaces (Spotify, YouTube
-          captions, Apple Podcasts, host site, aggregators) — всі crawl&apos;аються
-          AI engines. Один podcast = 6-12 місяців visibility tail.
+          Generate a retrieval-optimized brief for the founder before a podcast
+          appearance. Transcripts publish across 5-10 surfaces (Spotify, YouTube
+          captions, Apple Podcasts, host site, aggregators) — all crawled by AI
+          engines. One podcast = 6-12 months of visibility tail.
         </p>
       </header>
 
@@ -33,9 +33,9 @@ export function PodcastPrepPanel({
 
       {briefs.length === 0 ? (
         <p className="rounded-md border border-dashed border-border bg-muted/30 p-4 text-center text-xs text-muted-foreground">
-          Жодного brief&apos;у ще не згенеровано. Натисни{" "}
-          <span className="font-semibold">+ New podcast brief</span> щоб
-          створити перший.
+          No briefs generated yet. Click{" "}
+          <span className="font-semibold">+ New podcast brief</span> to create
+          your first one.
         </p>
       ) : (
         <ul className="space-y-2">

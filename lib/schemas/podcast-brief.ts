@@ -33,7 +33,7 @@ export const TalkingPointSchema = z.object({
 export type TalkingPoint = z.infer<typeof TalkingPointSchema>;
 
 /**
- * §4.3 Anticipated Q&A — likely host questions с brand-voiced suggested answers.
+ * §4.3 Anticipated Q&A — likely host questions with brand-voiced suggested answers.
  * 6-10 entries. Answers ≤120 words so founder can speak them naturally.
  */
 export const AnticipatedQASchema = z.object({
@@ -45,7 +45,7 @@ export const AnticipatedQASchema = z.object({
 export type AnticipatedQA = z.infer<typeof AnticipatedQASchema>;
 
 /**
- * §4.4 Brand-drop moments — organic spots в розмові де brand mention fits naturally
+ * §4.4 Brand-drop moments — organic spots in the conversation where a brand mention fits naturally
  * (3-5 entries). trigger = the conversational moment, suggested_mention = single
  * sentence, specificity_boost = the concrete claim that goes alongside.
  */
@@ -69,10 +69,10 @@ export const TopicToAvoidSchema = z.object({
 export type TopicToAvoid = z.infer<typeof TopicToAvoidSchema>;
 
 /**
- * §4.6 Competitor mention strategy — per top competitor (з Peec snapshot, sorted
- * by recent W9 signal frequency). Founder defense reflex tends to name competitor,
- * which boosts competitor visibility у транскрипті — strategy gives playbook
- * when explicit name OK vs neutral umbrella term.
+ * §4.6 Competitor mention strategy — per top competitor (from Peec snapshot, sorted
+ * by recent W9 signal frequency). Founder defense reflex tends to name the competitor,
+ * which boosts competitor visibility in the transcript — strategy gives the playbook
+ * for when an explicit name is OK vs a neutral umbrella term.
  */
 export const CompetitorMentionStrategySchema = z.object({
   competitor_name: z.string().min(2).max(100),
@@ -145,7 +145,7 @@ export const PodcastPrepRequestSchema = z.object({
 export type PodcastPrepRequest = z.infer<typeof PodcastPrepRequestSchema>;
 
 // ---------------------------------------------------------------------------
-// runs.stats discriminator member — registered у lib/schemas/run-stats.ts
+// runs.stats discriminator member — registered in lib/schemas/run-stats.ts
 // ---------------------------------------------------------------------------
 
 export const PodcastPrepRunStatsSchema = z.object({

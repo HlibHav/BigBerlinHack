@@ -1,7 +1,7 @@
 // W11 Podcast prep. Per brand-intel/features/podcast-prep.md +
 // decisions/2026-04-26-w11-podcast-prep.md.
 //
-// Trigger: event "podcast.prep-request" з payload PodcastPrepRequestSchema
+// Trigger: event "podcast.prep-request" with PodcastPrepRequestSchema payload
 // (organization_id, podcast_name, host_name, audience, episode_topic,
 // previous_episode_urls, scheduled_date, requested_by).
 //
@@ -9,14 +9,14 @@
 //   0. create-run-row              — placeholder runs row, ok=false
 //   1. gather-context              — last 7d signals + Peec snapshot baseline + active counter-drafts + brand voice pillars
 //   2. resolve-podcast-context     — optional Tavily fetch of previous episode pages (≤3) for tone/host calibration
-//   3. generate-talking-points     — claude-sonnet-4-5, 5-7 angle-distinct talking points с retrievability_score
-//   4. generate-anticipated-qa     — gpt-4o, 6-10 likely host questions з suggested answers (≤120 words each)
+//   3. generate-talking-points     — claude-sonnet-4-5, 5-7 angle-distinct talking points with retrievability_score
+//   4. generate-anticipated-qa     — gpt-4o, 6-10 likely host questions with suggested answers (≤120 words each)
 //   5. generate-brand-drop-moments — gpt-4o, 3-5 organic mention spots
 //   6. generate-avoidance-list     — gpt-4o, 3-5 topics to dodge + pivot suggestions
 //   7. generate-competitor-strat   — gpt-4o, per top competitor: when name/when generic/risks
 //   8. judge-brief                 — claude-sonnet-4-5 single call, 4 dims + judge_score + top_fixes
 //   9. assemble-brief              — render Markdown + INSERT podcast_briefs row
-//  10. finalize-run                — runs row update з PodcastPrepRunStatsSchema
+//  10. finalize-run                — runs row update with PodcastPrepRunStatsSchema
 
 import { z } from "zod";
 
@@ -457,10 +457,10 @@ export async function __podcastPrepHandler({
     const prompt = [
       sharedContextBlock,
       ``,
-      `Generate 6-10 anticipated host questions з suggested answers.`,
+      `Generate 6-10 anticipated host questions with suggested answers.`,
       `Each entry must contain:`,
       `- question: realistic phrasing the host (${host_name}) is likely to use, calibrated to audience and episode topic.`,
-      `- suggested_answer: ≤120 words, brand-voiced, specific, includes natural brand mention з concrete proof point. Conversational tone.`,
+      `- suggested_answer: ≤120 words, brand-voiced, specific, includes a natural brand mention with a concrete proof point. Conversational tone.`,
       `- why_host_asks: tie to a recent W9 signal, competitor move, or general industry context.`,
       `- pitfall: the common founder trap when answering this question (1 sentence).`,
       ``,
@@ -498,7 +498,7 @@ export async function __podcastPrepHandler({
       const prompt = [
         sharedContextBlock,
         ``,
-        `Generate 3-5 organic moments в розмові where founder can drop a brand mention naturally.`,
+        `Generate 3-5 organic moments in the conversation where the founder can drop a brand mention naturally.`,
         `Each entry must contain:`,
         `- trigger: the conversational moment (e.g. "when host asks about your tech stack", "when discussing how you measure CS success").`,
         `- suggested_mention: ≤1 sentence the founder might say.`,
@@ -587,9 +587,9 @@ export async function __podcastPrepHandler({
         `- when_ok_to_name: typical situations OK to name explicitly (host asked, public comparison, well-known fact). 1-2 sentences.`,
         `- when_use_generic: situations where name boost would hurt founder's brand or sound petty. 1-2 sentences.`,
         `- suggested_generic_phrasing: array of 1-3 neutral umbrella terms (e.g. "legacy CRMs", "first-generation enterprise CRM"). Must NOT be slighting.`,
-        `- risk_if_mishandled: 1 concrete risk (legal review, SEO boost to competitor у транскрипті, tone problem).`,
+        `- risk_if_mishandled: 1 concrete risk (legal review, SEO boost to competitor in the transcript, tone problem).`,
         ``,
-        `Logic: founder defense reflex tends to name competitor, which boosts competitor visibility у транскрипті where ми хочемо boost'нути власний бренд.`,
+        `Logic: founder defense reflex tends to name the competitor, which boosts competitor visibility in the transcript exactly where we want to boost our own brand.`,
         ``,
         renderForbiddenListForPrompt(),
       ].join("\n");
@@ -814,7 +814,7 @@ function buildSharedContextBlock(args: SharedContextArgs): string {
     prevEpBlock,
     ``,
     `## Why this matters`,
-    `The transcript will publish on host site, Spotify show notes, YouTube auto-captions, Apple Podcasts, and aggregators — all crawled by AI engines (ChatGPT, Perplexity, Google AI Overviews, Microsoft Copilot). Optimize the founder's contributions для retrievability + citation by AI engines, not just for human listening pleasure.`,
+    `The transcript will publish on host site, Spotify show notes, YouTube auto-captions, Apple Podcasts, and aggregators — all crawled by AI engines (ChatGPT, Perplexity, Google AI Overviews, Microsoft Copilot). Optimize the founder's contributions for retrievability + citation by AI engines, not just for human listening pleasure.`,
   ].join("\n");
 }
 

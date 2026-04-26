@@ -71,7 +71,7 @@ export function PodcastPrepForm({ organizationId, defaults }: Props) {
       requested_by: null,
     };
 
-    // Defense-in-depth: schema parse client-side для UX feedback before round trip.
+    // Defense-in-depth: schema parse client-side for UX feedback before round trip.
     const parsed = PodcastPrepRequestSchema.safeParse(payload);
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
@@ -82,7 +82,7 @@ export function PodcastPrepForm({ organizationId, defaults }: Props) {
     }
 
     const t = toast.loading("Generating podcast brief…", {
-      description: "W11 pipeline runs ~60s — brief з'явиться у списку",
+      description: "W11 pipeline runs ~60s — brief will appear in the list",
     });
     startTransition(async () => {
       try {
@@ -91,7 +91,7 @@ export function PodcastPrepForm({ organizationId, defaults }: Props) {
           toast.success("Brief generation triggered", {
             id: t,
             description:
-              "Refresh page or open detail view коли brief з'явиться нижче",
+              "Refresh the page or open the detail view once the brief shows up below",
           });
           reset();
         } else {
@@ -175,7 +175,7 @@ export function PodcastPrepForm({ organizationId, defaults }: Props) {
           minLength={10}
           maxLength={500}
           rows={2}
-          placeholder="How AI is reshaping CRM workflows у modern B2B SaaS"
+          placeholder="How AI is reshaping CRM workflows in modern B2B SaaS"
           className="w-full rounded border border-input bg-background px-2 py-1.5 text-sm"
         />
       </Field>
