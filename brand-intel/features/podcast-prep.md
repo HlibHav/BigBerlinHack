@@ -87,7 +87,19 @@ Per item:
 - **Чому ризик** (e.g. recent W9 high-severity signal без clean response, чи competitor outperformance де brand слабший)
 - **Pivot suggestion** (як elegantly redirect якщо host raises це)
 
-### 4.6 Judge verdict + top fixes
+### 4.6 Competitor mention strategy (3-5)
+
+Per top competitor (отримуємо з Peec snapshot `is_own=false` brands, відсортовані за recent signal frequency):
+
+- **Competitor name** (e.g. "Salesforce", "HubSpot")
+- **When OK to name explicitly** (1-2 sentences) — типові кейси: host вже згадав, direct comparison запитується host'ом, well-known fact про competitor у public domain
+- **When to use generic phrasing** (1-2 sentences) — coли competitor не доречний, коли risk disparagement, коли founder не хоче boost competitor SEO у transcript
+- **Suggested generic phrasing** (1-3 alternatives) — e.g. *"legacy CRMs"*, *"older platforms"*, *"first-generation tools"*. Брeze nuancу — generic phrasing must NOT be slighting (no *"dated junk"* etc).
+- **Risk if mishandled** (1 sentence) — e.g. *"explicit Salesforce mention boosts їхню visibility у transcript on aggregator sites"*, *"false claim about competitor pricing може trigger legal review"*, *"looks petty якщо звучить як rant"*
+
+Логіка: founder часто інстинктивно називає competitor (defense reflex). Це boost'ує competitor у транскрипті там, де ми хочемо boost'нути власний бренд. Strategy section dає exact playbook коли name OK, коли use neutral umbrella term.
+
+### 4.7 Judge verdict + top fixes
 Single judge call (claude-sonnet-4-5) rates the WHOLE brief на 4 dimensions (1-10 кожна):
 - **Retrievability** — як likely AI engine процитує брend post-publication
 - **Naturality** — чи звучить як natural conversation, не як sales pitch
@@ -111,11 +123,12 @@ Steps:
 4. **generate-anticipated-qa** — single `gpt-4o` call (cheaper, longer-form generation). Output 6-10 questions+answers. Кожна answer ≤120 words.
 5. **generate-brand-drop-moments** — `gpt-4o` call. Output 3-5 organic mention spots.
 6. **generate-avoidance-list** — `gpt-4o` call з explicit input з W9 high-severity signals last 14d що не мають approved counter-draft. Output 3-5 topics + pivots.
-7. **judge-brief** — `claude-sonnet-4-5` single call rates ALL sections together. Returns `judge_score` 1-10, 4 dimensions, top_fixes string[]. Mirror судить pattern з `lib/services/variant-judge.ts`.
-8. **assemble-brief** — render Markdown з усіх sections, sort talking points by retrievability_score desc, persist всі jsonb fields + markdown_brief в `podcast_briefs`.
-9. **finalize-run** — runs row update з stats (sections_generated, total_llm_calls, judge_score, cost_usd_cents).
+7. **generate-competitor-mention-strategy** — `gpt-4o` call. Input: top 3-5 competitors з Peec snapshot (відсортовані за recent W9 signal frequency). Output: per-competitor strategy entry (when to name, when to use generic, suggested generic phrasings, risk if mishandled). Cost ~$0.005.
+8. **judge-brief** — `claude-sonnet-4-5` single call rates ALL sections together (talking points + Q&A + brand drops + avoidance + competitor strategy). Returns `judge_score` 1-10, 4 dimensions, top_fixes string[]. Mirror pattern з `lib/services/variant-judge.ts`.
+9. **assemble-brief** — render Markdown з усіх sections, sort talking points by retrievability_score desc, persist всі jsonb fields + markdown_brief в `podcast_briefs`.
+10. **finalize-run** — runs row update з stats (sections_generated, total_llm_calls, judge_score, cost_usd_cents).
 
-Cost envelope: ~$0.05/brief (sonnet talking points + 3× gpt-4o + sonnet judge ≈ $0.04-0.06).
+Cost envelope: ~$0.055/brief (sonnet talking points + 4× gpt-4o + sonnet judge ≈ $0.045-0.065).
 
 ---
 
@@ -136,6 +149,7 @@ Feature columns:
 - `anticipated_qa jsonb` — array of `AnticipatedQA`
 - `brand_drop_moments jsonb` — array of `BrandDropMoment`
 - `topics_to_avoid jsonb` — array of `TopicToAvoid`
+- `competitor_mention_strategy jsonb` — array of `CompetitorMentionStrategy`
 - `judge_score numeric(3,2)` — 1-10 з .5 precision (1.00, 1.50, ..., 10.00)
 - `judge_reasoning text`
 - `judge_dimensions jsonb` — `{retrievability, naturality, specificity, coverage}` each 1-10
@@ -157,7 +171,8 @@ Migration file: `supabase/migrations/{timestamp}_create_podcast_briefs.sql`.
 - `AnticipatedQASchema` — question, suggested_answer, why_host_asks, pitfall
 - `BrandDropMomentSchema` — trigger, suggested_mention, specificity_boost
 - `TopicToAvoidSchema` — topic, risk, pivot
-- `PodcastBriefOutputSchema` — composes the four above + judge fields
+- `CompetitorMentionStrategySchema` — competitor_name, when_ok_to_name, when_use_generic, suggested_generic_phrasing (z.array(z.string()).min(1).max(3)), risk_if_mishandled
+- `PodcastBriefOutputSchema` — composes all five above + judge fields
 - `PodcastPrepRequestSchema` — event payload
 - `PodcastBriefRunStatsSchema` — runs.stats shape для W11
 
@@ -210,12 +225,15 @@ Brief detail page MUST be readable on iPhone Safari 5x375px viewport. Sections c
 
 ## 10. Non-goals v1
 
-- Live podcast guidance (real-time AI prompts during recording — separate W11.5).
-- Audio analysis of recorded podcasts (transcript ingestion + retrospective scoring — W11.6).
+- Live podcast guidance (real-time AI prompts during recording — separate W11.5, не plan'уємо зараз).
+- **Post-podcast retrospective режим** (W11.6 — фаундер upload'є transcript, ми scoring'уємо realized retrievability gains). Закрито 2026-04-26 — out of scope взагалі, не roadmap.
+- Audio analysis of recorded podcasts (transcript ingestion).
+- **Calendar integration** (auto-detect upcoming podcast bookings via Google Calendar / Cal.com / RSS). Закрито 2026-04-26 — manual entry форма достатня.
 - Auto-scheduling brief refreshes для recurring podcast appearances.
 - Multi-language briefs (EN-only first; UA/DE post-launch).
-- Auto-publish brief до Notion/Slack для team alignment (post-launch integration).
-- Booking podcast appearances (out of scope — outreach is separate).
+- Auto-publish brief до Notion/Slack для team alignment.
+- Booking podcast appearances (outreach is separate product).
+- **Reusing W5 ranked variants як reference у talking points generation.** Закрито 2026-04-26 — separate concern, talking points мають own quality bar; cross-pollination з written-channel variants ризикує переносити непридатні для spoken word паттерни.
 
 ---
 
@@ -235,19 +253,24 @@ Brief detail page MUST be readable on iPhone Safari 5x375px viewport. Sections c
 
 ## 12. Open questions (resolve при реалізації)
 
-- Чи передавати W5 ranked variants як reference при talking-points generation? Could enrich якщо narrative simulator вже run для цього week's signals. Trade-off: contextual richness vs prompt bloat.
-- Як гарантувати що brand mention frequency natural не spammy? Поточний approach — judge `naturality` dimension. Alternative: hard cap "не більше 3 brand mentions per talking point".
-- Чи варто додати "competitor mention strategy" як окрему section? Founder might want guidance: коли OK to name competitor, коли краще generic ("legacy CRMs").
-- Чи потрібен post-podcast retrospective режим (W11.6) — фаундер upload'є transcript, ми scoring'уємо як добре він hit'нув talking points + які retrievability gains realized?
-- Чи інтегрувати з calendar (Google Calendar / Cal.com) для автодетекту upcoming podcast bookings? Post-launch.
+Вирішено 2026-04-26 (фіксація рішень — у §10 Non-goals і §4.6 Competitor mention strategy):
+
+- ✅ W5 reference у talking points → НЕ (out of scope)
+- ✅ Competitor mention strategy як окрема section → ТАК (added §4.6 + step 7 + schema)
+- ✅ Post-podcast retrospective W11.6 → НЕ (non-goal)
+- ✅ Calendar integration → НЕ (non-goal)
+
+Залишається відкритим:
+
+- Як гарантувати що brand mention frequency natural не spammy? Поточний approach — judge `naturality` dimension. Alternative: hard cap "не більше 3 brand mentions per talking point" як post-filter перед persist. Calibrate після першого real run.
 
 ---
 
 ## 13. Files affected (estimate)
 
 **NEW:**
-- `inngest/functions/podcast-prep.ts` (~400 LOC, complex pipeline)
-- `lib/schemas/podcast-brief.ts` (~120 LOC) — **CRITICAL**
+- `inngest/functions/podcast-prep.ts` (~450 LOC — added competitor-mention-strategy step)
+- `lib/schemas/podcast-brief.ts` (~140 LOC — додано `CompetitorMentionStrategySchema`) — **CRITICAL**
 - `lib/services/podcast-judge.ts` (~150 LOC)
 - `supabase/migrations/{timestamp}_create_podcast_briefs.sql` (~80 LOC) — **CRITICAL**
 - `app/actions/podcast-prep.ts` (~50 LOC)
